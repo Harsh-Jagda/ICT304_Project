@@ -11,3 +11,11 @@ The project uses the following files from the M5 dataset from Kaggle:
 - sales_train_validation.csv - Historical daily unit sales.
 - calendar.csv - Dates, holidays, promotions and event metadata.
 - sell_prices.csv - Weekly item prices per store. 
+
+Features: 
+- Data cleaning, merging and feature engineering
+
+Technology used:
+- Programming language: Python 3.11
+- Libraries: pandas, numpy
+- Tools: VSCode
