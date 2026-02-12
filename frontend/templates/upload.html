@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Upload CSV</title>
+  <style>
+    body {
+      background-color: #121212;
+      color: #f0f0f0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background-color: #1f1f1f;
+      padding: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header h1 { margin: 0; font-size: 1.5rem; }
+    header a { color: #03dac6; text-decoration: none; margin-left: 1rem; }
+    .container { padding: 2rem; }
+    .card {
+      background-color: #1f1f1f;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+    }
+    input[type="file"] {
+      display: block;
+      margin-bottom: 1rem;
+    }
+    input[type="submit"] {
+      background-color: #03dac6;
+      border: none;
+      padding: 0.5rem 1rem;
+      color: #121212;
+      font-weight: bold;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Upload CSV</h1>
+    <div>
+      <a href="/dashboard">Back to Dashboard</a>
+      <a href="/logout">Logout</a>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="card">
+      <form method="POST" enctype="multipart/form-data">
+        <label for="file">Select CSV file:</label>
+        <input type="file" name="file" id="file" accept=".csv" required>
+        <input type="submit" value="Upload">
+      </form>
+    </div>
+  </div>
+</body>
+</html>
+
