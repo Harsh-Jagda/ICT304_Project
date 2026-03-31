@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, render_template_string, flash, current_app, session
 import os
+import json
 from auth import (
     check_login,
     login_user,
@@ -35,33 +36,39 @@ def login():
     return render_template("login.html", error=error)
 
 
-# ---------------- DASHBOARD ----------------
 @routes.route("/dashboard")
 def dashboard():
     if not role_required(["admin", "analyst", "viewer"]):
         return redirect(url_for("routes.login"))
 
+    # 1. Handle CSVs (Existing logic)
     uploads_list = []
     upload_folder = current_app.config["UPLOAD_FOLDER"]
     if os.path.exists(upload_folder):
-        uploads_list = os.listdir(upload_folder)
+        uploads_list = [f for f in os.listdir(upload_folder) if f.endswith(('.csv', '.parquet'))]
+
+    # 2. Handle JSON Lead Times (New logic)
+    json_list = []
+    # Point to your backend/model folder
+    model_folder = os.path.join(current_app.root_path, "model") 
+    if os.path.exists(model_folder):
+        json_list = [f for f in os.listdir(model_folder) if f.endswith('.json')]
 
     active_csv = session.get("active_csv", "None")
+    active_name = os.path.basename(active_csv) if active_csv != "None" else "None"
     
-    # ✅ Extract just the filename for display
-    if active_csv and active_csv != "None":
-        active_name = os.path.basename(active_csv)
-    else:
-        active_name = "None"
+    # Store active JSON name for display
+    active_json = session.get("active_json", "lead_times.json") 
 
     return render_template(
         "dashboard.html",
         username=get_username(),
         role=get_role(),
         uploads=uploads_list,
-        active_name=active_name
+        json_configs=json_list,
+        active_name=active_name,
+        active_json=active_json
     )
-
 
 
 @routes.route("/forecast")
@@ -85,29 +92,51 @@ def forecast():
 
 
 
+
 @routes.route("/risk")
 def risk():
+    # 1. Get the active CSV from session
     csv_path = session.get("active_csv")
-
     if not csv_path or not os.path.exists(csv_path):
-        flash("No valid dataset selected. Please select a CSV or use demo data.")
+        flash("No valid dataset selected. Please select one on the dashboard.")
         return redirect(url_for("routes.dashboard"))
 
-    from services.risk_service import compute_risk
+    # 2. Get the active JSON config from session (default to lead_times.json)
+    active_json = session.get("active_json", "lead_times.json")
 
-    # ✅ Calculate risk for all three categories
-    categories = ["FOODS", "HOBBIES", "HOUSEHOLD"]
+    from services.risk_service import compute_risk
+    import pandas as pd
+
+    # 3. Dynamically find categories in the current file
+    try:
+        if csv_path.endswith(".parquet"):
+            temp_df = pd.read_parquet(csv_path, columns=["cat_id"])
+        else:
+            # Read just the cat_id column to save memory
+            temp_df = pd.read_csv(csv_path, usecols=["cat_id"])
+        
+        categories = temp_df["cat_id"].unique().tolist()
+    except Exception:
+        categories = ["All Items"]
+
     results = []
 
+    # 4. Run analysis for each category using the SELECTED JSON
     for cat in categories:
-        result, err = compute_risk(csv_path, category=cat)
+        result, err = compute_risk(
+            csv_path, 
+            category=cat, 
+            json_filename=active_json
+        )
         if not err:
             results.append(result)
 
     if not results:
-        return f"<h2>Risk Analysis Error</h2><pre>Could not calculate risk for any category</pre><br><a href='/dashboard'>Back to Dashboard</a>"
+        flash("Could not generate risk analysis results.")
+        return redirect(url_for("routes.dashboard"))
 
-    return render_template("risk.html", data=results)  # Pass list of results
+    return render_template("risk.html", data=results, active_config=active_json)
+
 
 
 @routes.route("/upload", methods=["GET", "POST"])
@@ -173,3 +202,50 @@ def demo():
 @routes.route("/instructions")
 def instructions():
     return render_template("instructions.html")
+
+
+
+@routes.route("/update_lead_times", methods=["GET", "POST"])
+def update_lead_times():
+    if not role_required(["admin"]):
+        return "Admins only."
+
+    if request.method == "POST":
+        if 'file' not in request.files:
+            flash("No file part")
+            return redirect(request.url)
+            
+        file = request.files['file']
+        if file.filename == '':
+            flash("No selected file")
+            return redirect(request.url)
+
+        if file and file.filename.endswith('.json'):
+            # Save to the backend/model directory
+            model_dir = os.path.join(current_app.root_path, "model")
+            if not os.path.exists(model_dir):
+                os.makedirs(model_dir)
+                
+            save_path = os.path.join(model_dir, file.filename)
+            file.save(save_path)
+            
+            flash(f"Config {file.filename} uploaded successfully!")
+            return redirect(url_for("routes.dashboard"))
+        else:
+            flash("Please upload a valid .json file")
+            
+    return render_template("update_lead.html")
+
+
+
+
+@routes.route("/select_json", methods=["POST"])
+def select_json():
+    if not role_required(["admin"]):
+        return "Admins only."
+
+    selected_json = request.form.get("selected_json")
+    if selected_json:
+        session["active_json"] = selected_json
+
+    return redirect(url_for("routes.dashboard"))

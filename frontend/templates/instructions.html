@@ -1,49 +1,85 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>CSV Guide</title>
-
-<style>
-body { background:#0f172a; color:white; font-family:sans-serif; padding:20px; }
-.card { background:#1e293b; padding:20px; border-radius:12px; }
-h1 { color:#38bdf8; }
-</style>
-
+    <meta charset="UTF-8">
+    <title>Data Formatting Guide</title>
+    <style>
+        body { background:#0f172a; color:#f8fafc; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding:40px; line-height: 1.6; }
+        .card { background:#1e293b; padding:30px; border-radius:16px; border: 1px solid #334155; max-width: 800px; margin: 0 auto; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        h1 { color:#38bdf8; text-align: center; margin-bottom: 30px; }
+        h2 { color:#7dd3fc; border-bottom: 1px solid #334155; padding-bottom: 10px; margin-top: 25px; }
+        ul { padding-left: 20px; }
+        li { margin-bottom: 10px; }
+        code { background: #0f172a; color: #fbbf24; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+        pre { background: #0f172a; color: #fbbf24; padding: 15px; border-radius: 8px; overflow-x: auto; font-family: monospace; border: 1px solid #334155; }
+        .back-btn { display: inline-block; margin-top: 20px; color: #38bdf8; text-decoration: none; font-weight: bold; }
+        .back-btn:hover { text-underline-offset: 4px; text-decoration: underline; }
+        .tag { display: inline-block; background: #0369a1; color: white; font-size: 0.75rem; padding: 2px 8px; border-radius: 9999px; margin-left: 8px; vertical-align: middle; }
+    </style>
 </head>
 <body>
 
-<h1>CSV Format Instructions</h1>
-
 <div class="card">
+    <h1>System Configuration Guide</h1>
 
-<p><b>Minimum required column:</b></p>
-<ul>
-<li>sales</li>
-</ul>
+    <p>To ensure the WMS Forecasting and Risk engines work correctly, please follow the formatting guidelines below for both your data and your supply chain settings.</p>
 
-<p><b>Optional (auto-generated if missing):</b></p>
-<ul>
-<li>rolling_std_7</li>
-<li>lag_7</li>
-</ul>
+    <h2>1. CSV Dataset Format <span class="tag">Inventory Data</span></h2>
+    
+    <p><b>Required Columns:</b></p>
+    <ul>
+        <li><code>sales</code>: Historical daily quantity. This is the primary target for the LightGBM model.</li>
+    </ul>
 
-<p><b>Recommended (for best results):</b></p>
-<ul>
-<li>item_id</li>
-<li>dept_id</li>
-<li>cat_id</li>
-<li>store_id</li>
-<li>sell_price</li>
-<li>date</li>
-</ul>
+    <p><b>Classification Columns (For Risk Analysis):</b></p>
+    <ul>
+        <li><code>cat_id</code>: Category identifier. <strong>Note:</strong> This must match the keys in your Lead Time JSON.</li>
+        <li><code>item_id</code>: Unique SKU identifier.</li>
+        <li><code>dept_id</code> / <code>store_id</code>: Optional organizational identifiers.</li>
+    </ul>
 
-<p><b>Best practice:</b></p>
-<p>Use a dataset similar to the processed M5 parquet file.</p>
+    <p><b>Technical Features:</b></p>
+    <ul>
+        <li><code>sell_price</code>, <code>date</code>, <code>event_name_1</code>: Improving forecasting accuracy.</li>
+    </ul>
 
+    <h2>2. Lead Time JSON Format <span class="tag">Supply Chain Settings</span></h2>
+    
+    <p>To customize Risk Analysis (Safety Stock & ROP), upload a JSON file with the structure shown below. Each key represents a <code>cat_id</code>.</p>
+
+<pre>
+{
+    "PHARMA": {
+        "lead_time_days": 5,
+        "service_level_z": 1.96,
+        "description": "Critical medical supplies."
+    },
+    "SURGICAL": {
+        "lead_time_days": 3,
+        "service_level_z": 1.645,
+        "description": "Standard surgical tools."
+    },
+    "FOODS": {
+        "lead_time_days": 1,
+        "service_level_z": 2.326,
+        "description": "Perishable items, high service level."
+    }
+}
+</pre>
+
+    <p><b>Configuration Details:</b></p>
+    <ul>
+        <li><code>lead_time_days</code>: Number of days between order and delivery.</li>
+        <li><code>service_level_z</code>: The Z-score for statistical confidence (e.g., 1.96 for 95% service level).</li>
+        <li><code>description</code>: Optional text for your internal reference.</li>
+    </ul>
+
+    <div style="margin-top: 30px; padding: 15px; background: #0f172a; border-left: 4px solid #38bdf8; border-radius: 4px;">
+        <strong>Pro Tip:</strong> You can upload multiple JSON files (e.g., <code>standard.json</code> vs <code>emergency.json</code>) and switch between them on the Dashboard to simulate different supply chain scenarios.
+    </div>
+
+    <a href="/dashboard" class="back-btn">← Back to Dashboard</a>
 </div>
-
-<a href="/dashboard">← Back</a>
 
 </body>
 </html>

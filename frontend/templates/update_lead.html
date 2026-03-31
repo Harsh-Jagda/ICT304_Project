@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Upload Lead Time Config</title>
+    <style>
+        body { background:#0f172a; color:#e2e8f0; font-family:sans-serif; padding:40px; }
+        .card { background:#1e293b; padding:30px; border-radius:12px; border: 1px solid #334155; max-width: 500px; margin: 0 auto; }
+        h1 { color:#38bdf8; text-align: center; }
+        input[type="file"] { display: block; margin: 20px 0; color: #94a3b8; }
+        .btn { 
+            background:#22c55e; color:white; border:none; padding:12px 20px; 
+            cursor:pointer; font-weight:bold; border-radius: 6px; width: 100%;
+        }
+        .btn:hover { background: #16a34a; }
+        .back-link { display: block; text-align: center; margin-top: 20px; color: #38bdf8; text-decoration: none; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h1>Upload Lead Times</h1>
+    <p style="color: #94a3b8; font-size: 0.9rem;">Select a <code>.json</code> file to add a new lead time configuration to the system.</p>
+    
+    <form method="POST" enctype="multipart/form-data" action="/update_lead_times">
+        <input type="file" name="file" accept=".json" required>
+        <button type="submit" class="btn">Upload Configuration</button>
+    </form>
+
+    <a href="/dashboard" class="back-link">← Back to Dashboard</a>
+</div>
+
+</body>
+</html>

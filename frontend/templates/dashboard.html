@@ -13,9 +13,7 @@
             padding: 20px;
         }
 
-        h1 {
-            color: #38bdf8;
-        }
+        h1 { color: #38bdf8; margin-bottom: 5px; }
 
         .container {
             display: grid;
@@ -28,6 +26,7 @@
             padding: 20px;
             border-radius: 12px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            border: 1px solid #334155;
         }
 
         .button {
@@ -39,20 +38,17 @@
             text-decoration: none;
             border-radius: 6px;
             font-weight: bold;
+            font-size: 0.9rem;
         }
 
-        .button:hover {
-            background: #0ea5e9;
-        }
+        .button:hover { background: #0ea5e9; }
 
         .secondary {
             background: #334155;
             color: white;
         }
 
-        .secondary:hover {
-            background: #475569;
-        }
+        .secondary:hover { background: #475569; }
 
         input[type="submit"] {
             padding: 8px 12px;
@@ -61,15 +57,28 @@
             background: #22c55e;
             color: white;
             cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
         }
 
-        input[type="submit"]:hover {
-            background: #16a34a;
+        input[type="submit"]:hover { background: #16a34a; }
+
+        .status-bar {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #1e293b;
+            border-radius: 8px;
+            border-left: 4px solid #38bdf8;
         }
 
-        label {
-            margin-left: 5px;
+        .divider {
+            height: 1px;
+            background: #334155;
+            margin: 20px 0;
         }
+
+        label { margin-left: 5px; }
+        .radio-group { margin-bottom: 8px; }
     </style>
 </head>
 <body>
@@ -77,62 +86,77 @@
 <h1>Warehouse AI Dashboard</h1>
 <p>Role: <b>{{ role }}</b></p>
 
-<p>Active Dataset: <b style="color:#22c55e;">{{ active_name }}</b></p>
+<div class="status-bar">
+    <div>Dataset: <b style="color:#22c55e;">{{ active_name }}</b></div>
+    <div>Lead Time Config: <b style="color:#38bdf8;">{{ active_json }}</b></div>
+</div>
 
 <div class="container">
 
-    <!-- ADMIN: DATA MANAGEMENT -->
     {% if role == "admin" %}
     <div class="card">
-        <h3>Data Management</h3>
+        <h3>System Management</h3>
 
-        {% if uploads %}
         <form method="POST" action="/select_csv">
-            <p>Select CSV for Forecasting / Risk:</p>
-
-            {% for file in uploads %}
-            <div>
-                <input type="radio" name="selected_file" value="{{ file }}" required>
-                <label>{{ file }}</label>
-            </div>
-            {% endfor %}
-
-            <br>
-            <input type="submit" value="Use Selected CSV">
+            <p><b>1. Select Dataset (CSV/Parquet):</b></p>
+            {% if uploads %}
+                {% for file in uploads %}
+                <div class="radio-group">
+                    <input type="radio" name="selected_file" value="{{ file }}" {% if active_name == file %}checked{% endif %} required>
+                    <label>{{ file }}</label>
+                </div>
+                {% endfor %}
+                <input type="submit" value="Activate Dataset">
+            {% else %}
+                <p style="color: #94a3b8; font-style: italic;">No datasets found.</p>
+            {% endif %}
         </form>
-        {% else %}
-        <p>No CSV files uploaded yet.</p>
-        {% endif %}
 
-        <br>
+        <div class="divider"></div>
+
+        <form method="POST" action="/select_json">
+            <p><b>2. Select Lead Time Config (JSON):</b></p>
+            {% if json_configs %}
+                {% for json_file in json_configs %}
+                <div class="radio-group">
+                    <input type="radio" name="selected_json" value="{{ json_file }}" {% if active_json == json_file %}checked{% endif %} required>
+                    <label>{{ json_file }}</label>
+                </div>
+                {% endfor %}
+                <input type="submit" value="Activate Config" style="background: #38bdf8; color: black;">
+            {% else %}
+                <p style="color: #94a3b8; font-style: italic;">No config files found.</p>
+            {% endif %}
+        </form>
+
+        <div class="divider"></div>
 
         <a href="/upload" class="button">Upload CSV</a>
+        <a href="/update_lead_times" class="button secondary">Config Lead Times</a>
         <a href="/demo" class="button secondary">Use Demo Data</a>
         <a href="/instructions" class="button secondary">CSV Guide</a>
     </div>
     {% endif %}
 
-    <!-- FORECAST -->
     {% if role in ["admin", "analyst"] %}
     <div class="card">
         <h3>Sales Forecasting</h3>
-        <p>Generate predictions for daily, weekly, and monthly demand.</p>
+        <p>Generate predictions for daily, weekly, and monthly demand based on active dataset.</p>
         <a href="/forecast" class="button">Open Forecast</a>
     </div>
 
-    <!-- RISK -->
     <div class="card">
         <h3>Risk Analysis</h3>
-        <p>Identify shortages and calculate reorder points & safety stock.</p>
+        <p>Identify shortages and calculate ROP & safety stock using active lead times.</p>
         <a href="/risk" class="button">Open Risk Analysis</a>
     </div>
     {% endif %}
 
-    <!-- VIEWER -->
     {% if role == "viewer" %}
     <div class="card">
         <h3>Dashboard View</h3>
-        <p>You can view results once an admin selects a dataset.</p>
+        <p>Status: Viewing active data selected by Admin.</p>
+        <p>Please use the sidebar (if applicable) or wait for report generation.</p>
     </div>
     {% endif %}
 
