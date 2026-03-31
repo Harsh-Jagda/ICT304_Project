@@ -9,9 +9,11 @@ __pycache__/
 
 # Data files
 *.csv
+!users.csv
 
 # Models
 *.pkl
+!wms_lgbm_model.pkl
 
 # OS files
 .DS_Store
