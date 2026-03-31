@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CSV Guide</title>
+
+<style>
+body { background:#0f172a; color:white; font-family:sans-serif; padding:20px; }
+.card { background:#1e293b; padding:20px; border-radius:12px; }
+h1 { color:#38bdf8; }
+</style>
+
+</head>
+<body>
+
+<h1>CSV Format Instructions</h1>
+
+<div class="card">
+
+<p><b>Minimum required column:</b></p>
+<ul>
+<li>sales</li>
+</ul>
+
+<p><b>Optional (auto-generated if missing):</b></p>
+<ul>
+<li>rolling_std_7</li>
+<li>lag_7</li>
+</ul>
+
+<p><b>Recommended (for best results):</b></p>
+<ul>
+<li>item_id</li>
+<li>dept_id</li>
+<li>cat_id</li>
+<li>store_id</li>
+<li>sell_price</li>
+<li>date</li>
+</ul>
+
+<p><b>Best practice:</b></p>
+<p>Use a dataset similar to the processed M5 parquet file.</p>
+
+</div>
+
+<a href="/dashboard">← Back</a>
+
+</body>
+</html>

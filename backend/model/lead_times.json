@@ -1,0 +1,17 @@
+{
+    "HOBBIES": {
+        "lead_time_days": 4,
+        "service_level_z": 1.645,
+        "description": "General hobby items, moderate supply speed."
+    },
+    "HOUSEHOLD": {
+        "lead_time_days": 3,
+        "service_level_z": 1.96,
+        "description": "Essential household goods, higher service level required (95%)."
+    },
+    "FOODS": {
+        "lead_time_days": 1,
+        "service_level_z": 2.326,
+        "description": "Perishable items, very fast supply speed (99% service level)."
+    }
+}

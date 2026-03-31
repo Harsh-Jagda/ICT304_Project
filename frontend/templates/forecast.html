@@ -1,65 +1,156 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>Forecasting</title>
-  <style>
-    body {
-      background-color: #121212;
-      color: #f0f0f0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      margin: 0;
-      padding: 0;
-    }
-    header {
-      background-color: #1f1f1f;
-      padding: 1rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    header h1 { margin: 0; font-size: 1.5rem; }
-    header a { color: #03dac6; text-decoration: none; margin-left: 1rem; }
-
-    .container { padding: 2rem; }
-    .card {
-      background-color: #1f1f1f;
-      padding: 1rem;
-      border-radius: 8px;
-      margin-bottom: 1rem;
-      box-shadow: 0 0 10px rgba(0,0,0,0.3);
-    }
-    a.button {
-      display: inline-block;
-      background-color: #03dac6;
-      color: #121212;
-      padding: 0.5rem 1rem;
-      border-radius: 5px;
-      text-decoration: none;
-      font-weight: bold;
-      margin-top: 1rem;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Forecast</title>
+    <style>
+        body { 
+            background: #0f172a; 
+            color: #e2e8f0; 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+        }
+        h1 { color: #38bdf8; }
+        h3 { color: #38bdf8; margin-top: 0; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .result { 
+            background: #1e293b; 
+            padding: 20px; 
+            border-radius: 8px; 
+            margin: 15px 0; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .metric { 
+            display: inline-block; 
+            margin: 10px 20px 10px 0; 
+        }
+        .metric-label { 
+            color: #94a3b8; 
+            font-size: 0.9em; 
+        }
+        .metric-value { 
+            font-size: 1.5em; 
+            font-weight: bold; 
+            color: #38bdf8; 
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 15px; 
+        }
+        th, td { 
+            padding: 12px; 
+            text-align: left; 
+            border-bottom: 1px solid #334155; 
+        }
+        th { 
+            color: #38bdf8; 
+            font-weight: bold;
+            background: #1e293b;
+        }
+        tr:hover { background: #334155; }
+        .back-link { 
+            color: #38bdf8; 
+            text-decoration: none; 
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 15px;
+            background: #334155;
+            border-radius: 6px;
+        }
+        .back-link:hover { background: #475569; }
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .stat-card {
+            background: #334155;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #22c55e;
+        }
+        .stat-label {
+            color: #94a3b8;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+    </style>
 </head>
 <body>
-  <header>
-    <h1>Forecasting</h1>
-    <div>
-      <a href="/dashboard">Back to Dashboard</a>
-      <a href="/logout">Logout</a>
+<div class="container">
+    <h1>📊 Sales Forecast Analysis</h1>
+    
+    <div class="result">
+        <h3>Overall Forecast Summary</h3>
+        <div class="summary-stats">
+            <div class="stat-card">
+                <div class="stat-number">{{ data.total_items }}</div>
+                <div class="stat-label">Total Items Analyzed</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ data.high_demand_items }}</div>
+                <div class="stat-label">High Demand Items (>1/day)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ data.daily }}</div>
+                <div class="stat-label">Avg Daily Demand per Item</div>
+            </div>
+        </div>
     </div>
-  </header>
-
-  <div class="container">
-    <div class="card">
-      <h3>Forecasting Placeholder</h3>
-      <p>Using selected CSV: <strong>{{ csv_file }}</strong></p>
-      <p>The forecasting results will appear here once the model is connected.</p>
-      <a href="/forecast/day" class="button">Day Forecast (Demo)</a>
-      <a href="/forecast/week" class="button">Week Forecast (Demo)</a>
-      <a href="/forecast/month" class="button">Month Forecast (Demo)</a>
+    
+    <div class="result">
+        <h3>Aggregate Forecasts</h3>
+        <div class="metric">
+            <div class="metric-label">Daily Average</div>
+            <div class="metric-value">{{ data.daily }} units</div>
+        </div>
+        <div class="metric">
+            <div class="metric-label">Weekly Projection</div>
+            <div class="metric-value">{{ data.weekly }} units</div>
+        </div>
+        <div class="metric">
+            <div class="metric-label">Monthly Projection</div>
+            <div class="metric-value">{{ data.monthly }} units</div>
+        </div>
     </div>
-  </div>
+    
+    {% if data.by_category %}
+    <div class="result">
+        <h3>Category Breakdown</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Avg per Item (daily)</th>
+                    <th>Total Daily Demand</th>
+                    <th>Items in Sample</th>
+                    <th>Monthly Projection</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cat, stats in data.by_category.items() %}
+                <tr>
+                    <td><strong>{{ cat }}</strong></td>
+                    <td>{{ stats.avg_per_item }} units/day</td>
+                    <td>{{ stats.total_daily }} units/day</td>
+                    <td>{{ stats.item_count }} items</td>
+                    <td>{{ (stats.total_daily * 30)|round(1) }} units</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+    
+    <a href="/dashboard" class="back-link">← Back to Dashboard</a>
+</div>
 </body>
 </html>
-

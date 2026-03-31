@@ -41,43 +41,75 @@ def dashboard():
     if not role_required(["admin", "analyst", "viewer"]):
         return redirect(url_for("routes.login"))
 
-    # Get list of uploaded files
     uploads_list = []
     upload_folder = current_app.config["UPLOAD_FOLDER"]
     if os.path.exists(upload_folder):
         uploads_list = os.listdir(upload_folder)
 
+    active_csv = session.get("active_csv", "None")
+    
+    # ✅ Extract just the filename for display
+    if active_csv and active_csv != "None":
+        active_name = os.path.basename(active_csv)
+    else:
+        active_name = "None"
+
     return render_template(
         "dashboard.html",
         username=get_username(),
         role=get_role(),
-        uploads=uploads_list
+        uploads=uploads_list,
+        active_name=active_name
     )
 
 
-# ---------------- FORECAST ----------------
+
 @routes.route("/forecast")
 def forecast():
-    csv_file = session.get("active_csv")
-    if not csv_file:
-        return redirect(url_for("routes.dashboard"))  # No CSV selected yet
+    csv_path = session.get("active_csv")
+    
+    print(f"🔍 ROUTE DEBUG: active_csv = {csv_path}")
 
-    csv_path = os.path.join(current_app.config["UPLOAD_FOLDER"], csv_file)
+    if not csv_path or not os.path.exists(csv_path):
+        return f"Error: No valid dataset. Session has: {csv_path}, Exists: {os.path.exists(csv_path) if csv_path else False}"
 
-    # TODO: Load CSV and do forecasting
-    return render_template("forecast.html", csv_file=csv_file)
-# ---------------- RISK ----------------
+    from services.forecasting_service import run_forecast
+    results, err = run_forecast(csv_path)
+
+    if err:
+        return f"<h2>Forecast Error</h2><pre>{err}</pre><br><a href='/dashboard'>Back to Dashboard</a>"
+
+    print(f"✅ ROUTE DEBUG: Forecast successful: {results}")
+    return render_template("forecast.html", data=results)
+
+
+
+
 @routes.route("/risk")
 def risk():
-    csv_file = session.get("active_csv")
-    if not csv_file:
-        return redirect(url_for("routes.dashboard"))  # No CSV selected yet
+    csv_path = session.get("active_csv")
 
-    csv_path = os.path.join(current_app.config["UPLOAD_FOLDER"], csv_file)
+    if not csv_path or not os.path.exists(csv_path):
+        flash("No valid dataset selected. Please select a CSV or use demo data.")
+        return redirect(url_for("routes.dashboard"))
 
-    # TODO: Load CSV and do risk analysis
-    return render_template("risk.html", csv_file=csv_file)
-# ---------------- UPLOAD ----------------
+    from services.risk_service import compute_risk
+
+    # ✅ Calculate risk for all three categories
+    categories = ["FOODS", "HOBBIES", "HOUSEHOLD"]
+    results = []
+
+    for cat in categories:
+        result, err = compute_risk(csv_path, category=cat)
+        if not err:
+            results.append(result)
+
+    if not results:
+        return f"<h2>Risk Analysis Error</h2><pre>Could not calculate risk for any category</pre><br><a href='/dashboard'>Back to Dashboard</a>"
+
+    return render_template("risk.html", data=results)  # Pass list of results
+
+
 @routes.route("/upload", methods=["GET", "POST"])
 def upload():
     if not role_required(["admin"]):
@@ -116,8 +148,28 @@ def select_csv():
     if not selected_file:
         return "No file selected"
 
-    # Store the selected CSV in session so forecasting/risk can use it
-    session["active_csv"] = selected_file
+    # ✅ Store FULL path instead of just filename
+    full_path = os.path.join(current_app.config["UPLOAD_FOLDER"], selected_file)
+    session["active_csv"] = full_path
 
     return redirect(url_for("routes.dashboard"))
 
+
+@routes.route("/demo")
+def demo():
+    demo_path = current_app.config["DEMO_DATA_PATH"]
+    
+    print(f"🔍 DEBUG DEMO: Looking for file at: {demo_path}")
+    print(f"🔍 DEBUG DEMO: File exists: {os.path.exists(demo_path)}")
+    
+    if not os.path.exists(demo_path):
+        return f"Demo file not found at: {demo_path}<br><a href='/dashboard'>Back</a>"
+    
+    session["active_csv"] = demo_path
+    return redirect(url_for("routes.dashboard"))
+
+
+
+@routes.route("/instructions")
+def instructions():
+    return render_template("instructions.html")

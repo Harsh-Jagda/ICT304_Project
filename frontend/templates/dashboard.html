@@ -1,126 +1,142 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Dashboard</title>
-  <style>
-    /* Global styles */
-    body {
-      background-color: #121212;
-      color: #f0f0f0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      margin: 0;
-      padding: 0;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Warehouse AI Dashboard</title>
+    <style>
+        body {
+            background: #0f172a;
+            color: #e2e8f0;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
 
-    header {
-      background-color: #1f1f1f;
-      padding: 1rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
+        h1 {
+            color: #38bdf8;
+        }
 
-    header h1 { margin: 0; font-size: 1.5rem; }
-    header a { color: #03dac6; text-decoration: none; margin-left: 1rem; }
+        .container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
 
-    .container { padding: 2rem; }
-    .card {
-      background-color: #1f1f1f;
-      padding: 1rem;
-      border-radius: 8px;
-      margin-bottom: 1rem;
-      box-shadow: 0 0 10px rgba(0,0,0,0.3);
-    }
+        .card {
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
 
-    .card h3 { margin-top: 0; }
-    a.button {
-      display: inline-block;
-      background-color: #03dac6;
-      color: #121212;
-      padding: 0.5rem 1rem;
-      border-radius: 5px;
-      text-decoration: none;
-      font-weight: bold;
-    }
+        .button {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 10px 15px;
+            background: #38bdf8;
+            color: black;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+        }
 
-    form input[type="submit"] {
-      background-color: #03dac6;
-      border: none;
-      padding: 0.5rem 1rem;
-      color: #121212;
-      font-weight: bold;
-      border-radius: 5px;
-      cursor: pointer;
-    }
+        .button:hover {
+            background: #0ea5e9;
+        }
 
-    ul { padding-left: 1.2rem; }
-    li { margin-bottom: 0.3rem; }
-  </style>
+        .secondary {
+            background: #334155;
+            color: white;
+        }
+
+        .secondary:hover {
+            background: #475569;
+        }
+
+        input[type="submit"] {
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: none;
+            background: #22c55e;
+            color: white;
+            cursor: pointer;
+        }
+
+        input[type="submit"]:hover {
+            background: #16a34a;
+        }
+
+        label {
+            margin-left: 5px;
+        }
+    </style>
 </head>
 <body>
-  <header>
-    <h1>Dashboard</h1>
-    <div>
-      <span>{{ username }} ({{ role }})</span>
-      <a href="/logout">Logout</a>
-    </div>
-  </header>
 
-  <div class="container">
+<h1>Warehouse AI Dashboard</h1>
+<p>Role: <b>{{ role }}</b></p>
 
-    <div class="card">
-      <h3>Welcome, {{ username }}!</h3>
-      <p>Your role: <strong>{{ role }}</strong></p>
-    </div>
+<p>Active Dataset: <b style="color:#22c55e;">{{ active_name }}</b></p>
 
+<div class="container">
+
+    <!-- ADMIN: DATA MANAGEMENT -->
     {% if role == "admin" %}
     <div class="card">
-      <h3>Manage CSV Files</h3>
+        <h3>Data Management</h3>
 
-      {% if uploads %}
-      <form method="POST" action="/select_csv">
-        <p>Select CSV for Forecasting/Risk:</p>
-        {% for file in uploads %}
-          <div>
-            <input type="radio" name="selected_file" value="{{ file }}" id="{{ file }}" required>
-            <label for="{{ file }}">{{ file }}</label>
-          </div>
-        {% endfor %}
-        <br>
-        <input type="submit" value="Use Selected CSV">
-      </form>
-      {% else %}
+        {% if uploads %}
+        <form method="POST" action="/select_csv">
+            <p>Select CSV for Forecasting / Risk:</p>
+
+            {% for file in uploads %}
+            <div>
+                <input type="radio" name="selected_file" value="{{ file }}" required>
+                <label>{{ file }}</label>
+            </div>
+            {% endfor %}
+
+            <br>
+            <input type="submit" value="Use Selected CSV">
+        </form>
+        {% else %}
         <p>No CSV files uploaded yet.</p>
-      {% endif %}
+        {% endif %}
 
-      <br>
-      <a href="/upload" class="button">Upload New CSV</a>
+        <br>
+
+        <a href="/upload" class="button">Upload CSV</a>
+        <a href="/demo" class="button secondary">Use Demo Data</a>
+        <a href="/instructions" class="button secondary">CSV Guide</a>
     </div>
     {% endif %}
 
+    <!-- FORECAST -->
     {% if role in ["admin", "analyst"] %}
     <div class="card">
-      <h3>Forecasting</h3>
-      <p>View and analyze sales forecasts for day/week/month intervals.</p>
-      <a href="/forecast" class="button">Go<</a>
+        <h3>Sales Forecasting</h3>
+        <p>Generate predictions for daily, weekly, and monthly demand.</p>
+        <a href="/forecast" class="button">Open Forecast</a>
     </div>
 
+    <!-- RISK -->
     <div class="card">
-      <h3>Risk Analysis</h3>
-      <p>Check possible shortages and losses for upcoming periods.</p>
-      <a href="/risk" class="button">Go<</a>
+        <h3>Risk Analysis</h3>
+        <p>Identify shortages and calculate reorder points & safety stock.</p>
+        <a href="/risk" class="button">Open Risk Analysis</a>
     </div>
     {% endif %}
 
+    <!-- VIEWER -->
     {% if role == "viewer" %}
     <div class="card">
-      <h3>View Dashboard</h3>
-      <p>You can see general trends and uploaded CSVs (admin chooses active CSV).</p>
+        <h3>Dashboard View</h3>
+        <p>You can view results once an admin selects a dataset.</p>
     </div>
     {% endif %}
 
-  </div>
+</div>
+
 </body>
 </html>
-
