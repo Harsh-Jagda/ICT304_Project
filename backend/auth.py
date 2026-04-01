@@ -67,3 +67,8 @@ def get_role():
 def get_username():
     return session.get("username")
 
+def is_admin():
+    return session.get("role") == "admin"
+
+def is_analyst():
+    return session.get("role") == "analyst"

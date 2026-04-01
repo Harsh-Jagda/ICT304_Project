@@ -5,158 +5,202 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Warehouse AI Dashboard</title>
     <style>
+        :root {
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text: #e2e8f0;
+            --accent: #38bdf8;
+            --admin-red: #f87171;
+            --analyst-gold: #fbbf24;
+            --viewer-green: #34d399;
+            --border: #334155;
+        }
+
         body {
-            background: #0f172a;
-            color: #e2e8f0;
-            font-family: Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', sans-serif;
             margin: 0;
             padding: 20px;
         }
 
-        h1 { color: #38bdf8; margin-bottom: 5px; }
+        .badge {
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .badge-admin { background: var(--admin-red); color: white; }
+        .badge-analyst { background: var(--analyst-gold); color: black; }
+        .badge-viewer { background: var(--viewer-green); color: black; }
+
+        .status-bar {
+            margin: 20px 0;
+            padding: 20px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            border-left: 5px solid var(--accent);
+            display: flex;
+            justify-content: space-between;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
 
         .container {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
         }
 
         .card {
-            background: #1e293b;
-            padding: 20px;
+            background: var(--card-bg);
+            padding: 25px;
             border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-            border: 1px solid #334155;
+            border: 1px solid var(--border);
         }
+
+        .admin-card { border-top: 4px solid var(--admin-red); }
+        .analyst-card { border-top: 4px solid var(--analyst-gold); }
+        .viewer-card { border-top: 4px solid var(--viewer-green); }
 
         .button {
             display: inline-block;
-            margin-top: 10px;
-            padding: 10px 15px;
-            background: #38bdf8;
-            color: black;
+            padding: 10px 18px;
+            background: var(--accent);
+            color: #000;
             text-decoration: none;
-            border-radius: 6px;
+            border-radius: 8px;
             font-weight: bold;
+            margin: 5px 0;
+            border: none;
+            cursor: pointer;
+            width: 100%;
+            text-align: center;
+        }
+
+        .secondary { background: var(--border); color: white; }
+
+        .radio-group {
+            background: #111827;
+            padding: 8px 12px;
+            margin-bottom: 5px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
             font-size: 0.9rem;
         }
 
-        .button:hover { background: #0ea5e9; }
-
-        .secondary {
-            background: #334155;
-            color: white;
+        .divider { height: 1px; background: var(--border); margin: 15px 0; }
+        
+        .empty-state {
+            color: #64748b;
+            font-style: italic;
+            text-align: center;
+            padding: 20px;
         }
-
-        .secondary:hover { background: #475569; }
-
-        input[type="submit"] {
-            padding: 8px 12px;
-            border-radius: 6px;
-            border: none;
-            background: #22c55e;
-            color: white;
-            cursor: pointer;
-            font-weight: bold;
-            margin-top: 10px;
-        }
-
-        input[type="submit"]:hover { background: #16a34a; }
-
-        .status-bar {
-            margin-bottom: 20px;
-            padding: 15px;
-            background: #1e293b;
-            border-radius: 8px;
-            border-left: 4px solid #38bdf8;
-        }
-
-        .divider {
-            height: 1px;
-            background: #334155;
-            margin: 20px 0;
-        }
-
-        label { margin-left: 5px; }
-        .radio-group { margin-bottom: 8px; }
     </style>
 </head>
 <body>
 
-<h1>Warehouse AI Dashboard</h1>
-<p>Role: <b>{{ role }}</b></p>
+<div style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <h1 style="margin:0;">Warehouse AI</h1>
+        <p style="margin:0;">User: <b>{{ session.get('username') }}</b> <span class="badge badge-{{ role }}">{{ role }}</span></p>
+    </div>
+    <a href="/logout" style="color: #94a3b8; text-decoration: none;">Sign Out</a>
+</div>
 
 <div class="status-bar">
-    <div>Dataset: <b style="color:#22c55e;">{{ active_name }}</b></div>
-    <div>Lead Time Config: <b style="color:#38bdf8;">{{ active_json }}</b></div>
+    <div>
+        <small style="color: #94a3b8; display: block;">ACTIVE DATASET</small>
+        <b style="color: {{ 'var(--viewer-green)' if active_name != 'None' else '#f87171' }};">
+            {{ active_name }}
+        </b>
+    </div>
+    <div style="text-align: right;">
+        <small style="color: #94a3b8; display: block;">ACTIVE CONFIG</small>
+        <b style="color: var(--accent);">{{ active_json }}</b>
+    </div>
 </div>
 
 <div class="container">
 
     {% if role == "admin" %}
-    <div class="card">
-        <h3>System Management</h3>
+    <div class="card admin-card">
+        <h3 style="color: var(--admin-red);"> System Administration</h3>
+        <p>Manage raw data and system configurations.</p>
+        
+        <a href="/upload" class="button">Upload New CSV/Parquet</a>
+        <a href="/update_lead_times" class="button secondary">Upload New JSON Config</a>
+        <a href="/demo" class="button secondary">Reset to Demo Data</a>
+        
+        <div class="divider"></div>
+        <p><b>Audit Log (Recent):</b></p>
+        <div style="font-family: monospace; font-size: 0.75rem; color: #94a3b8; background: #000; padding: 10px; border-radius: 5px;">
+            {% for log in audit_logs %}
+                <div>{{ log }}</div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 
+    {% if role in ["admin", "analyst"] %}
+    <div class="card analyst-card">
+        <h3 style="color: var(--analyst-gold);"> Analyst Workspace</h3>
+        
         <form method="POST" action="/select_csv">
-            <p><b>1. Select Dataset (CSV/Parquet):</b></p>
-            {% if uploads %}
-                {% for file in uploads %}
+            <p><b>1. Switch Active Dataset:</b></p>
+            {% for file in uploads %}
                 <div class="radio-group">
-                    <input type="radio" name="selected_file" value="{{ file }}" {% if active_name == file %}checked{% endif %} required>
-                    <label>{{ file }}</label>
+                    <input type="radio" name="selected_file" value="{{ file }}" {% if active_name == file %}checked{% endif %}>
+                    <label style="margin-left:10px;">{{ file }}</label>
                 </div>
-                {% endfor %}
-                <input type="submit" value="Activate Dataset">
-            {% else %}
-                <p style="color: #94a3b8; font-style: italic;">No datasets found.</p>
-            {% endif %}
+            {% endfor %}
+            <button type="submit" class="button" style="background: var(--analyst-gold);">Activate Data</button>
         </form>
 
         <div class="divider"></div>
 
         <form method="POST" action="/select_json">
-            <p><b>2. Select Lead Time Config (JSON):</b></p>
-            {% if json_configs %}
-                {% for json_file in json_configs %}
+            <p><b>2. Switch Active Config:</b></p>
+            {% for json_file in json_configs %}
                 <div class="radio-group">
-                    <input type="radio" name="selected_json" value="{{ json_file }}" {% if active_json == json_file %}checked{% endif %} required>
-                    <label>{{ json_file }}</label>
+                    <input type="radio" name="selected_json" value="{{ json_file }}" {% if active_json == json_file %}checked{% endif %}>
+                    <label style="margin-left:10px;">{{ json_file }}</label>
                 </div>
-                {% endfor %}
-                <input type="submit" value="Activate Config" style="background: #38bdf8; color: black;">
-            {% else %}
-                <p style="color: #94a3b8; font-style: italic;">No config files found.</p>
-            {% endif %}
+            {% endfor %}
+            <button type="submit" class="button secondary">Activate Config</button>
         </form>
 
         <div class="divider"></div>
-
-        <a href="/upload" class="button">Upload CSV</a>
-        <a href="/update_lead_times" class="button secondary">Config Lead Times</a>
-        <a href="/demo" class="button secondary">Use Demo Data</a>
-        <a href="/instructions" class="button secondary">CSV Guide</a>
-    </div>
-    {% endif %}
-
-    {% if role in ["admin", "analyst"] %}
-    <div class="card">
-        <h3>Sales Forecasting</h3>
-        <p>Generate predictions for daily, weekly, and monthly demand based on active dataset.</p>
-        <a href="/forecast" class="button">Open Forecast</a>
-    </div>
-
-    <div class="card">
-        <h3>Risk Analysis</h3>
-        <p>Identify shortages and calculate ROP & safety stock using active lead times.</p>
-        <a href="/risk" class="button">Open Risk Analysis</a>
+        <div style="display: flex; gap: 10px;">
+            <a href="/forecast" class="button" style="background: var(--accent);">Run Forecast</a>
+            <a href="/risk" class="button" style="background: var(--accent);">Run Risk</a>
+        </div>
     </div>
     {% endif %}
 
     {% if role == "viewer" %}
-    <div class="card">
-        <h3>Dashboard View</h3>
-        <p>Status: Viewing active data selected by Admin.</p>
-        <p>Please use the sidebar (if applicable) or wait for report generation.</p>
+    <div class="card viewer-card">
+        <h3 style="color: var(--viewer-green);"> Executive Overview</h3>
+        
+        {% if active_name == "None" %}
+        <div class="empty-state">
+            <p>⚠️ No dataset has been activated for the team yet.</p>
+            <p>Please wait for the System Administrator or Analyst to authorize a file for review.</p>
+        </div>
+        {% else %}
+        <p>The following reports are ready based on the <b>{{ active_name }}</b> dataset.</p>
+        <div style="background: #111827; padding: 15px; border-radius: 8px;">
+            <a href="/forecast" class="button" style="background: var(--viewer-green); color: #000;">Open Forecast Report</a>
+            <a href="/risk" class="button" style="background: var(--viewer-green); color: #000;">Open Risk Report</a>
+        </div>
+        {% endif %}
+
+        <div class="divider"></div>
+        <p style="font-size: 0.8rem; color: #94a3b8;">
+            <b>Read-Only Access:</b> You are viewing validated results. To request a data change, contact the Admin.
+        </p>
     </div>
     {% endif %}
 

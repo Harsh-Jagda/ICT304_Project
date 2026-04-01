@@ -8,24 +8,24 @@ MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "model", "wms_lgbm_mo
 
 def run_forecast(csv_path):
     try:
-        print(f"🔍 DEBUG: Processing file: {csv_path}")
+        print(f"DEBUG: Processing file: {csv_path}")
         
         df, err = process_uploaded_csv(csv_path)
         if err:
-            print(f"❌ DEBUG: Data prep error: {err}")
+            print(f"DEBUG: Data prep error: {err}")
             return None, err
         
-        print(f"✅ DEBUG: Loaded {len(df)} rows")
+        print(f"DEBUG: Loaded {len(df)} rows")
         
-        # ✅ Use RANDOM sampling instead of tail() to get diverse categories
+        # Use RANDOM sampling instead of tail() to get diverse categories
         if len(df) > 10000:
-            print(f"⚠️  DEBUG: Randomly sampling 10,000 rows from {len(df)} total rows")
+            print(f"DEBUG: Randomly sampling 10,000 rows from {len(df)} total rows")
             df = df.sample(n=10000, random_state=42).copy()  # Changed from tail() to sample()
         
         # Check category distribution
         if 'cat_id' in df.columns:
             cat_counts = df['cat_id'].value_counts().to_dict()
-            print(f"📊 DEBUG: Category distribution: {cat_counts}")
+            print(f"DEBUG: Category distribution: {cat_counts}")
         
         model = joblib.load(MODEL_PATH)
         feature_names = model.feature_name()
@@ -75,11 +75,11 @@ def run_forecast(csv_path):
             "high_demand_items": int(len(df[df['forecast'] > 1]))
         }
         
-        print(f"✅ DEBUG: Forecast results: {result}")
+        print(f"DEBUG: Forecast results: {result}")
         return result, None
     
     except Exception as e:
         import traceback
-        print(f"💥 DEBUG: Exception in run_forecast:")
+        print(f"DEBUG: Exception in run_forecast:")
         print(traceback.format_exc())
         return None, f"Forecast error: {str(e)}"

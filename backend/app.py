@@ -12,9 +12,9 @@ def create_app():
 
     app.register_blueprint(routes)
 
-    print(f"📁 Template folder: {app.template_folder}")
-    print(f"📁 Upload folder: {app.config['UPLOAD_FOLDER']}")
-    print(f"📁 Demo data: {app.config.get('DEMO_DATA_PATH', 'NOT SET')}")
+    print(f"Template folder: {app.template_folder}")
+    print(f"Upload folder: {app.config['UPLOAD_FOLDER']}")
+    print(f"Demo data: {app.config.get('DEMO_DATA_PATH', 'NOT SET')}")
 
 
 

@@ -1,3 +1,4 @@
+from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, render_template_string, flash, current_app, session
 import os
 import json
@@ -12,6 +13,11 @@ from auth import (
 
 
 routes = Blueprint("routes", __name__)
+
+GLOBAL_STATE = {
+    "active_csv": None,
+    "active_json": "lead_times.json"
+}
 
 
 # ---------------- LOGIN PAGE ----------------
@@ -42,110 +48,102 @@ def dashboard():
     if not role_required(["admin", "analyst", "viewer"]):
         return redirect(url_for("routes.login"))
 
-    # 1. Get CSVs from the uploads folder
+    # 1. Scan for CSV/Parquet files in Uploads
     upload_folder = current_app.config["UPLOAD_FOLDER"]
     uploads_list = []
     if os.path.exists(upload_folder):
         uploads_list = [f for f in os.listdir(upload_folder) if f.endswith(('.csv', '.parquet'))]
 
-    # 2. Get JSONs from BOTH folders (The Special Exception)
+    # 2. Scan for JSON configs in Model and Uploads
     json_list = []
-    
-    # Path A: The permanent model folder (Demo data)
     model_folder = os.path.join(current_app.root_path, "model")
     if os.path.exists(model_folder):
         json_list.extend([f for f in os.listdir(model_folder) if f.endswith('.json')])
-
-    # Path B: The user uploads folder
+    
     if os.path.exists(upload_folder):
         user_jsons = [f for f in os.listdir(upload_folder) if f.endswith('.json')]
-        # Only add if not already in the list to avoid duplicates
         for uj in user_jsons:
             if uj not in json_list:
                 json_list.append(uj)
 
-    # 3. Handle Active Selection display
-    active_csv = session.get("active_csv", "None")
-    active_name = os.path.basename(active_csv) if active_csv != "None" else "None"
-    active_json = session.get("active_json", "lead_times.json")
+    # 3. Resolve the GLOBAL active state (Not from Session)
+    active_path = GLOBAL_STATE["active_csv"]
+    
+    if active_path and os.path.exists(active_path):
+        active_name = os.path.basename(active_path)
+    else:
+        active_name = "None"
+
+    active_json = GLOBAL_STATE["active_json"]
+
+    # 4. Load Audit Logs (Admin Only)
+    audit_logs = []
+    if session.get("role") == "admin":
+        log_path = os.path.join(current_app.root_path, "data", "system_audit.log")
+        if os.path.exists(log_path):
+            with open(log_path, "r") as f:
+                audit_logs = f.readlines()[-5:]
 
     return render_template(
         "dashboard.html",
-        role=get_role(),
+        role=session.get("role"),
         uploads=uploads_list,
         json_configs=json_list,
         active_name=active_name,
-        active_json=active_json
+        active_json=active_json,
+        audit_logs=audit_logs
     )
-
 
 
 @routes.route("/forecast")
 def forecast():
-    csv_path = session.get("active_csv")
-    
-    print(f"🔍 ROUTE DEBUG: active_csv = {csv_path}")
+    # Analysts and Admins can trigger the forecast, Viewers can only view existing results
+    if not role_required(["admin", "analyst", "viewer"]):
+        return redirect(url_for("routes.login"))
 
+    csv_path = GLOBAL_STATE["active_csv"]
     if not csv_path or not os.path.exists(csv_path):
-        return f"Error: No valid dataset. Session has: {csv_path}, Exists: {os.path.exists(csv_path) if csv_path else False}"
+        flash("No active dataset. Please contact an Admin.")
+        return redirect(url_for("routes.dashboard"))
 
     from services.forecasting_service import run_forecast
     results, err = run_forecast(csv_path)
+    
+    if not err and session.get("role") != "viewer":
+        log_system_event("ANALYSIS", "Generated ML Forecast")
 
-    if err:
-        return f"<h2>Forecast Error</h2><pre>{err}</pre><br><a href='/dashboard'>Back to Dashboard</a>"
-
-    print(f"✅ ROUTE DEBUG: Forecast successful: {results}")
-    return render_template("forecast.html", data=results)
-
+    return render_template("forecast.html", data=results, role=session.get("role"))
 
 
 
 
 @routes.route("/risk")
 def risk():
-    # 1. Get the active CSV from session
-    csv_path = session.get("active_csv")
-    if not csv_path or not os.path.exists(csv_path):
-        flash("No valid dataset selected. Please select one on the dashboard.")
-        return redirect(url_for("routes.dashboard"))
+    if not role_required(["admin", "analyst", "viewer"]):
+        return redirect(url_for("routes.login"))
 
-    # 2. Get the active JSON config from session (default to lead_times.json)
-    active_json = session.get("active_json", "lead_times.json")
+    csv_path = GLOBAL_STATE["active_csv"]
+    active_json = GLOBAL_STATE["active_json"]
+
+    if not csv_path or not os.path.exists(csv_path):
+        flash("Dataset missing.")
+        return redirect(url_for("routes.dashboard"))
 
     from services.risk_service import compute_risk
     import pandas as pd
 
-    # 3. Dynamically find categories in the current file
     try:
-        if csv_path.endswith(".parquet"):
-            temp_df = pd.read_parquet(csv_path, columns=["cat_id"])
-        else:
-            # Read just the cat_id column to save memory
-            temp_df = pd.read_csv(csv_path, usecols=["cat_id"])
-        
+        temp_df = pd.read_parquet(csv_path, columns=["cat_id"]) if csv_path.endswith(".parquet") else pd.read_csv(csv_path, usecols=["cat_id"])
         categories = temp_df["cat_id"].unique().tolist()
-    except Exception:
+    except:
         categories = ["All Items"]
 
     results = []
-
-    # 4. Run analysis for each category using the SELECTED JSON
     for cat in categories:
-        result, err = compute_risk(
-            csv_path, 
-            category=cat, 
-            json_filename=active_json
-        )
-        if not err:
-            results.append(result)
+        result, err = compute_risk(csv_path, category=cat, json_filename=active_json)
+        if not err: results.append(result)
 
-    if not results:
-        flash("Could not generate risk analysis results.")
-        return redirect(url_for("routes.dashboard"))
-
-    return render_template("risk.html", data=results, active_config=active_json)
-
+    return render_template("risk.html", data=results, active_config=active_json, role=session.get("role"))
 
 
 @routes.route("/upload", methods=["GET", "POST"])
@@ -179,18 +177,26 @@ def logout():
 # ---------------- SELECT_CSV -------------
 @routes.route("/select_csv", methods=["POST"])
 def select_csv():
-    if not role_required(["admin"]):
-        return "Admins only."
+    if not role_required(["admin", "analyst"]):
+        flash("Unauthorized access.")
+        return redirect(url_for("routes.dashboard"))
 
     selected_file = request.form.get("selected_file")
-    if not selected_file:
-        return "No file selected"
-
-    # ✅ Store FULL path instead of just filename
-    full_path = os.path.join(current_app.config["UPLOAD_FOLDER"], selected_file)
-    session["active_csv"] = full_path
-
+    
+    if selected_file:
+        full_path = os.path.join(current_app.config["UPLOAD_FOLDER"], selected_file)
+        
+        if os.path.exists(full_path):
+            # Update the GLOBAL STATE so Viewers can see it
+            GLOBAL_STATE["active_csv"] = full_path
+            
+            log_system_event("DATA_ACTIVATION", f"Global dataset set to: {selected_file}")
+            flash(f"Global Dataset '{selected_file}' is now active for all users.")
+        else:
+            flash("Error: File not found.")
+    
     return redirect(url_for("routes.dashboard"))
+
 
 
 @routes.route("/demo")
@@ -251,15 +257,31 @@ def update_lead_times():
 
 
 
-
-
 @routes.route("/select_json", methods=["POST"])
 def select_json():
-    if not role_required(["admin"]):
-        return "Admins only."
+    if not role_required(["admin", "analyst"]):
+        flash("Unauthorized access.")
+        return redirect(url_for("routes.dashboard"))
 
     selected_json = request.form.get("selected_json")
+    
     if selected_json:
-        session["active_json"] = selected_json
+        # Update the GLOBAL STATE
+        GLOBAL_STATE["active_json"] = selected_json
+        
+        log_system_event("CONFIG_CHANGE", f"Global config set to: {selected_json}")
+        flash(f"Global Config '{selected_json}' is now active for all users.")
 
     return redirect(url_for("routes.dashboard"))
+
+
+
+
+# INTERNAL HELPER: Audit Logging (New Feature for Admin Oversight)
+def log_system_event(event_type, details):
+    log_path = os.path.join(current_app.root_path, "data", "system_audit.log")
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with open(log_path, "a") as f:
+        f.write(f"[{timestamp}] USER: {session.get('username')} | EVENT: {event_type} | {details}\n")
+
+

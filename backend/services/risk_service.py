@@ -6,7 +6,7 @@ import os
 
 def compute_risk(csv_path, category="FOODS", json_filename="lead_times.json"):
     try:
-        print(f"🔍 DEBUG RISK: Category: {category} | Config: {json_filename}")
+        print(f"DEBUG RISK: Category: {category} | Config: {json_filename}")
 
         # ---------------- FIND THE CORRECT JSON ----------------
         # Define the two possible locations
@@ -17,10 +17,10 @@ def compute_risk(csv_path, category="FOODS", json_filename="lead_times.json"):
 
         if os.path.exists(upload_path):
             lead_path = upload_path
-            print(f"✅ Loading user-uploaded config from: {upload_path}")
+            print(f"Loading user-uploaded config from: {upload_path}")
         elif os.path.exists(model_path):
             lead_path = model_path
-            print(f"✅ Loading demo config from: {model_path}")
+            print(f"Loading demo config from: {model_path}")
         else:
             return None, f"Config {json_filename} not found in model or uploads."
 

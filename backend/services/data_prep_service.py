@@ -12,7 +12,7 @@ def process_uploaded_csv(csv_path):
     # basic cleaning
     df["sales"] = df["sales"].fillna(0)
     
-    # ✅ Convert categorical columns to category dtype (MUST match training)
+    # Convert categorical columns to category dtype (MUST match training)
     # These are the exact columns LightGBM expects as categorical
     categorical_cols = ['item_id', 'dept_id', 'cat_id', 'store_id', 'event_name_1', 'event_type_1']
     for col in categorical_cols:
