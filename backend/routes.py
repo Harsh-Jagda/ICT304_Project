@@ -36,39 +36,48 @@ def login():
     return render_template("login.html", error=error)
 
 
+
 @routes.route("/dashboard")
 def dashboard():
     if not role_required(["admin", "analyst", "viewer"]):
         return redirect(url_for("routes.login"))
 
-    # 1. Handle CSVs (Existing logic)
-    uploads_list = []
+    # 1. Get CSVs from the uploads folder
     upload_folder = current_app.config["UPLOAD_FOLDER"]
+    uploads_list = []
     if os.path.exists(upload_folder):
         uploads_list = [f for f in os.listdir(upload_folder) if f.endswith(('.csv', '.parquet'))]
 
-    # 2. Handle JSON Lead Times (New logic)
+    # 2. Get JSONs from BOTH folders (The Special Exception)
     json_list = []
-    # Point to your backend/model folder
-    model_folder = os.path.join(current_app.root_path, "model") 
+    
+    # Path A: The permanent model folder (Demo data)
+    model_folder = os.path.join(current_app.root_path, "model")
     if os.path.exists(model_folder):
-        json_list = [f for f in os.listdir(model_folder) if f.endswith('.json')]
+        json_list.extend([f for f in os.listdir(model_folder) if f.endswith('.json')])
 
+    # Path B: The user uploads folder
+    if os.path.exists(upload_folder):
+        user_jsons = [f for f in os.listdir(upload_folder) if f.endswith('.json')]
+        # Only add if not already in the list to avoid duplicates
+        for uj in user_jsons:
+            if uj not in json_list:
+                json_list.append(uj)
+
+    # 3. Handle Active Selection display
     active_csv = session.get("active_csv", "None")
     active_name = os.path.basename(active_csv) if active_csv != "None" else "None"
-    
-    # Store active JSON name for display
-    active_json = session.get("active_json", "lead_times.json") 
+    active_json = session.get("active_json", "lead_times.json")
 
     return render_template(
         "dashboard.html",
-        username=get_username(),
         role=get_role(),
         uploads=uploads_list,
         json_configs=json_list,
         active_name=active_name,
         active_json=active_json
     )
+
 
 
 @routes.route("/forecast")
@@ -205,6 +214,8 @@ def instructions():
 
 
 
+
+
 @routes.route("/update_lead_times", methods=["GET", "POST"])
 def update_lead_times():
     if not role_required(["admin"]):
@@ -221,20 +232,23 @@ def update_lead_times():
             return redirect(request.url)
 
         if file and file.filename.endswith('.json'):
-            # Save to the backend/model directory
-            model_dir = os.path.join(current_app.root_path, "model")
-            if not os.path.exists(model_dir):
-                os.makedirs(model_dir)
+            # Switch destination to the dynamic UPLOAD_FOLDER
+            upload_dir = current_app.config["UPLOAD_FOLDER"]
+            
+            # Ensure the uploads directory exists
+            if not os.path.exists(upload_dir):
+                os.makedirs(upload_dir)
                 
-            save_path = os.path.join(model_dir, file.filename)
+            save_path = os.path.join(upload_dir, file.filename)
             file.save(save_path)
             
-            flash(f"Config {file.filename} uploaded successfully!")
+            flash(f"Config {file.filename} uploaded to uploads folder!")
             return redirect(url_for("routes.dashboard"))
         else:
             flash("Please upload a valid .json file")
             
     return render_template("update_lead.html")
+
 
 
 
