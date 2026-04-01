@@ -1,156 +1,84 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sales Forecast</title>
+    <title>Demand Forecast | Warehouse AI</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { 
-            background: #0f172a; 
-            color: #e2e8f0; 
-            font-family: Arial, sans-serif; 
-            padding: 20px; 
-        }
-        h1 { color: #38bdf8; }
-        h3 { color: #38bdf8; margin-top: 0; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        .result { 
-            background: #1e293b; 
-            padding: 20px; 
-            border-radius: 8px; 
-            margin: 15px 0; 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-        }
-        .metric { 
-            display: inline-block; 
-            margin: 10px 20px 10px 0; 
-        }
-        .metric-label { 
-            color: #94a3b8; 
-            font-size: 0.9em; 
-        }
-        .metric-value { 
-            font-size: 1.5em; 
-            font-weight: bold; 
-            color: #38bdf8; 
-        }
-        table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin-top: 15px; 
-        }
-        th, td { 
-            padding: 12px; 
-            text-align: left; 
-            border-bottom: 1px solid #334155; 
-        }
-        th { 
-            color: #38bdf8; 
-            font-weight: bold;
-            background: #1e293b;
-        }
-        tr:hover { background: #334155; }
-        .back-link { 
-            color: #38bdf8; 
-            text-decoration: none; 
-            display: inline-block;
-            margin-top: 20px;
-            padding: 10px 15px;
-            background: #334155;
-            border-radius: 6px;
-        }
-        .back-link:hover { background: #475569; }
-        .summary-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
-        }
-        .stat-card {
-            background: #334155;
-            padding: 15px;
-            border-radius: 6px;
-            text-align: center;
-        }
-        .stat-number {
-            font-size: 2em;
-            font-weight: bold;
-            color: #22c55e;
-        }
-        .stat-label {
-            color: #94a3b8;
-            font-size: 0.9em;
-            margin-top: 5px;
-        }
+        :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --accent: #38bdf8; --border: #334155; --purple: #a855f7; }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; padding: 20px; }
+        .grid { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; margin-bottom: 20px; }
+        .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; }
+        .stat { font-size: 1.8rem; font-weight: bold; color: var(--accent); }
+        .badge { padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: bold; text-transform: uppercase; }
+        .badge-high { background: #22c55e; color: white; }
+        .badge-moderate { background: #f59e0b; color: black; }
+        .legend-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; font-size: 0.9rem; color: #94a3b8; margin-top: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th { text-align: left; color: #94a3b8; border-bottom: 1px solid var(--border); padding: 12px; }
+        td { padding: 12px; border-bottom: 1px solid #1e293b; }
+        .action-text { font-size: 1.1rem; font-weight: bold; color: white; margin-top: 10px; }
     </style>
 </head>
 <body>
-<div class="container">
-    <h1> Sales Forecast Analysis</h1>
-    
-    <div class="result">
-        <h3>Overall Forecast Summary</h3>
-        <div class="summary-stats">
-            <div class="stat-card">
-                <div class="stat-number">{{ data.total_items }}</div>
-                <div class="stat-label">Total Items Analyzed</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number">{{ data.high_demand_items }}</div>
-                <div class="stat-label">High Demand Items (>1/day)</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number">{{ data.daily }}</div>
-                <div class="stat-label">Avg Daily Demand per Item</div>
-            </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+        <h2 style="margin:0;"> AI Demand Forecast</h2>
+        <a href="/dashboard" style="color: var(--accent); text-decoration: none; font-weight: bold;">← Back</a>
+    </div>
+
+    <div class="card" style="border-left: 5px solid var(--accent);">
+        <h3 style="margin-top:0;"> How to Read the Forecast</h3>
+        <div class="legend-grid">
+            <div><b style="color: var(--text);">Daily Demand (Chart)</b><br>Total units across all items in a category per 24hrs.</div>
+            <div><b style="color: var(--text);">System Confidence</b><br>High = Stable trends. Moderate = Safety stock recommended.</div>
+            <div><b style="color: var(--text);">High Demand Items</b><br>Count of items moving >1 unit per day.</div>
         </div>
     </div>
-    
-    <div class="result">
-        <h3>Aggregate Forecasts</h3>
-        <div class="metric">
-            <div class="metric-label">Daily Average</div>
-            <div class="metric-value">{{ data.daily }} units</div>
+
+    <div class="grid">
+        <div>
+            <div class="card">
+                <p style="margin-top:0; color: #94a3b8;">System Confidence</p>
+                <span class="badge badge-{{ data.confidence_rating | lower }}">{{ data.confidence_rating }}</span>
+                <div style="margin-top:20px;"><p>Total Items</p><div class="stat">{{ data.total_items }}</div></div>
+                <div style="margin-top:20px;"><p>High Demand SKUs</p><div class="stat">{{ data.high_demand_count }}</div></div>
+            </div>
+
+            <div class="card" style="border-left: 5px solid var(--purple);">
+                <h3 style="margin:0; color: var(--purple); font-size: 0.9rem;"> LABOR ALLOCATION ADVICE</h3>
+                <div class="action-text">{{ data.labor_action }}</div>
+            </div>
         </div>
-        <div class="metric">
-            <div class="metric-label">Weekly Projection</div>
-            <div class="metric-value">{{ data.weekly }} units</div>
-        </div>
-        <div class="metric">
-            <div class="metric-label">Monthly Projection</div>
-            <div class="metric-value">{{ data.monthly }} units</div>
+
+        <div class="card">
+            <h3 style="margin:0;"> Category Volume (Daily)</h3>
+            <canvas id="forecastChart" width="400" height="220"></canvas>
         </div>
     </div>
-    
-    {% if data.by_category %}
-    <div class="result">
-        <h3>Category Breakdown</h3>
+
+    <div class="card">
+        <h3>Category Details</h3>
         <table>
-            <thead>
-                <tr>
-                    <th>Category</th>
-                    <th>Avg per Item (daily)</th>
-                    <th>Total Daily Demand</th>
-                    <th>Items in Sample</th>
-                    <th>Monthly Projection</th>
-                </tr>
-            </thead>
+            <thead><tr><th>Category</th><th>Avg Units/Item</th><th>Daily Volume</th><th>SKU Count</th></tr></thead>
             <tbody>
-                {% for cat, stats in data.by_category.items() %}
-                <tr>
-                    <td><strong>{{ cat }}</strong></td>
-                    <td>{{ stats.avg_per_item }} units/day</td>
-                    <td>{{ stats.total_daily }} units/day</td>
-                    <td>{{ stats.item_count }} items</td>
-                    <td>{{ (stats.total_daily * 30)|round(1) }} units</td>
-                </tr>
+                {% for cat, metrics in data.by_category.items() %}
+                <tr><td><b>{{ cat }}</b></td><td>{{ metrics.avg_per_item }}</td><td style="color: var(--accent);">{{ metrics.total_daily }}</td><td>{{ metrics.item_count }}</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
-    {% endif %}
-    
-    <a href="/dashboard" class="back-link">← Back to Dashboard</a>
-</div>
+
+    <script>
+        const ctx = document.getElementById('forecastChart').getContext('2d');
+        const rawData = {{ data.by_category | tojson }};
+        const labels = Object.keys(rawData);
+        const values = labels.map(l => rawData[l].total_daily);
+        new Chart(ctx, {
+            type: 'bar',
+            data: { labels: labels, datasets: [{ data: values, backgroundColor: '#38bdf8', borderRadius: 6 }] },
+            options: { plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#334155' } } } }
+        });
+    </script>
 </body>
 </html>

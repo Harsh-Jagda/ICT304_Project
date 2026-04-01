@@ -1,82 +1,77 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Risk Analysis</title>
+    <title>Risk Analysis | Warehouse AI</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { background: #0f172a; color: #e2e8f0; font-family: Arial; padding: 20px; }
-        h1 { color: #38bdf8; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        .result { background: #1e293b; padding: 20px; border-radius: 8px; margin: 15px 0; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #334155; }
-        th { color: #38bdf8; font-weight: bold; }
-        .metric { margin: 10px 0; }
-        .metric-label { color: #94a3b8; }
-        .metric-value { font-size: 1.3em; font-weight: bold; color: #22c55e; }
-        .back-link { 
-            color: #38bdf8; 
-            text-decoration: none; 
-            display: inline-block;
-            margin-top: 20px;
-            padding: 10px 15px;
-            background: #334155;
-            border-radius: 6px;
-        }
+        :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --border: #334155; --red: #f87171; --yellow: #fbbf24; --green: #34d399; }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; padding: 20px; }
+        .risk-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
+        .card { background: var(--card); padding: 25px; border-radius: 12px; border: 1px solid var(--border); position: relative; }
+        .risk-badge { position: absolute; top: 20px; right: 20px; padding: 6px 14px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; border: 1px solid transparent; }
+        .status-High { background: rgba(248, 113, 113, 0.15); color: var(--red); border-color: var(--red); }
+        .status-Medium { background: rgba(251, 191, 36, 0.15); color: var(--yellow); border-color: var(--yellow); }
+        .status-Low { background: rgba(52, 211, 153, 0.15); color: var(--green); border-color: var(--green); }
+        .action-box { margin-top: 20px; padding: 15px; background: rgba(15, 23, 42, 0.5); border-radius: 8px; border: 1px solid #334155; }
     </style>
 </head>
 <body>
-<div class="container">
-    <h1> Risk Analysis & Inventory Control</h1>
-    
-    {% if data is iterable and data is not string %}
-        <!-- Multiple categories -->
-        <table>
-            <thead>
-                <tr>
-                    <th>Category</th>
-                    <th>Avg Daily Demand</th>
-                    <th>Lead Time (days)</th>
-                    <th>Safety Stock</th>
-                    <th>Reorder Point (ROP)</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in data %}
-                <tr>
-                    <td><strong>{{ item.category }}</strong></td>
-                    <td>{{ item.avg_daily_demand }} units/day</td>
-                    <td>{{ item.lead_time }} days</td>
-                    <td>{{ item.safety }} units</td>
-                    <td><strong style="color: #22c55e;">{{ item.rop }} units</strong></td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        
-        <div class="result">
-            <p style="color: #94a3b8; font-size: 0.9em;">
-                <strong>Reorder Point (ROP):</strong> When stock reaches this level, place a new order.<br>
-                <strong>Safety Stock:</strong> Buffer inventory to prevent stockouts during lead time.
-            </p>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+        <h2>Inventory Risk Assessment</h2>
+        <a href="/dashboard" style="color: #38bdf8; text-decoration: none; font-weight: bold;">← Back</a>
+    </div>
+
+    <div class="card" style="border-left: 5px solid var(--yellow); margin-bottom: 30px;">
+        <h3 style="margin:0;"> Understanding Risk Metrics</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; font-size: 0.9rem; color: #94a3b8; margin-top: 10px;">
+            <div><b>ROP:</b> Trigger level to place a new order.</div>
+            <div><b>Safety Stock:</b> Emergency buffer for demand spikes.</div>
+            <div><b>Days of Cover:</b> How long stock lasts. Red = Emergency.</div>
         </div>
-    {% else %}
-        <!-- Single category -->
-        <div class="result">
-            <h3>{{ data.category }}</h3>
-            <div class="metric">
-                <div class="metric-label">Reorder Point (ROP)</div>
-                <div class="metric-value">{{ data.rop }} units</div>
+    </div>
+
+    <div class="risk-grid">
+        {% for item in data %}
+        <div class="card">
+            <span class="risk-badge status-{{ item.risk_status }}">{{ item.risk_status }} RISK</span>
+            <h3>{{ item.category }}</h3>
+            
+            <div style="display: flex; gap: 30px; align-items: center;">
+                <div style="width: 130px; height: 130px;"><canvas id="chart-{{ loop.index }}"></canvas></div>
+                <div>
+                    <div style="color: #94a3b8; font-size: 0.8rem;">Reorder Point</div>
+                    <div style="font-size: 1.4rem; font-weight: bold;">{{ item.rop }} units</div>
+                    <div style="color: #94a3b8; font-size: 0.8rem; margin-top:10px;">Days of Cover</div>
+                    <div style="font-size: 1.2rem; font-weight: bold; color: {% if item.estimated_days_of_cover < item.lead_time %}var(--red){% else %}var(--green){% endif %};">
+                        {{ item.estimated_days_of_cover }} Days
+                    </div>
+                </div>
             </div>
-            <div class="metric">
-                <div class="metric-label">Safety Stock</div>
-                <div class="metric-value">{{ data.safety }} units</div>
+
+            <div class="action-box">
+                <div style="color: #94a3b8; font-size: 0.75rem; text-transform: uppercase;">Purchasing Action</div>
+                <div style="font-weight: bold; font-size: 1rem; margin-top: 4px;">{{ item.recommended_action }}</div>
             </div>
-            <p>{{ data.explanation }}</p>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--border);">
+                <div><small style="color: #94a3b8;">Lead Time:</small><br><b>{{ item.lead_time }} Days</b></div>
+                <div><small style="color: #94a3b8;">Safety Stock:</small><br><b style="color: #6366f1;">+{{ item.safety_stock }}</b></div>
+            </div>
         </div>
-    {% endif %}
-    
-    <a href="/dashboard" class="back-link">← Back to Dashboard</a>
-</div>
+
+        <script>
+            new Chart(document.getElementById('chart-{{ loop.index }}'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Cycle', 'Safety'],
+                    datasets: [{ data: [{{ item.rop - item.safety_stock }}, {{ item.safety_stock }}], backgroundColor: ['#38bdf8', '#6366f1'], borderWidth: 0 }]
+                },
+                options: { cutout: '75%', plugins: { legend: { display: false } } }
+            });
+        </script>
+        {% endfor %}
+    </div>
 </body>
 </html>
