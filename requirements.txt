@@ -11,6 +11,7 @@ fsspec==2026.3.0
 itsdangerous==2.2.0
 Jinja2==3.1.6
 joblib==1.5.3
+jsonify==0.5
 lightgbm==4.6.0
 MarkupSafe==3.0.3
 numpy==2.4.2
