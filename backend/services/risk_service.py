@@ -1,75 +1,101 @@
+import joblib
+import os
 import pandas as pd
 import numpy as np
 import math
 import json
-import os
+from .data_prep_service import process_uploaded_csv
 
-def compute_risk(csv_path, category="FOODS", json_filename="lead_times.json"):
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "model", "wms_lgbm_model.pkl")
+
+# Exact feature set from the forecast service
+CAT_FEATURES = ['item_id', 'dept_id', 'cat_id', 'store_id', 'state_id', 'wday', 'month', 'event_name_1', 'event_type_1']
+NUM_FEATURES  = ['sell_price', 'lag_7', 'lag_28', 'rolling_mean_7', 'rolling_std_7', 'rolling_mean_28', 'rolling_std_28']
+FEATURES = CAT_FEATURES + NUM_FEATURES
+
+def compute_risk(csv_path, category="FOODS", json_filename="lead_times.json", selected_state="ALL"):
     try:
+        # 1. Resolve Config Path (Uploads priority)
         upload_path = os.path.join(os.path.dirname(__file__), "..", "uploads", json_filename)
-        model_path = os.path.join(os.path.dirname(__file__), "..", "model", json_filename)
-        lead_path = upload_path if os.path.exists(upload_path) else model_path
+        fallback_path = os.path.join(os.path.dirname(__file__), "..", "model", json_filename)
+        lead_path = upload_path if os.path.exists(upload_path) else fallback_path
 
         if not os.path.exists(lead_path):
-            return None, f"Config {json_filename} not found."
+            return None, f"Configuration file {json_filename} missing."
 
         with open(lead_path, "r") as f:
             lead_times = json.load(f)
 
-        matched_key = next((k for k in lead_times if k in category), None)
-        lead = lead_times[matched_key] if matched_key else {"lead_time_days": 3, "service_level_z": 1.645}
+        # 2. Process CSV & Get Available Regions for the Frontend
+        df, err = process_uploaded_csv(csv_path)
+        if err: return None, err
 
-        df = pd.read_parquet(csv_path) if csv_path.endswith(".parquet") else pd.read_csv(csv_path)
+        available_regions = []
+        if "state_id" in df.columns:
+            available_regions = sorted([str(s).strip() for s in df["state_id"].unique() if pd.notna(s)])
 
-        category_data = df[df["cat_id"] == category] if "cat_id" in df.columns else df
-        if category_data.empty: category_data = df
+        # 3. Filter by Region & Category
+        if selected_state != "ALL" and "state_id" in df.columns:
+            df = df[df["state_id"].astype(str).str.upper() == selected_state.upper()].copy()
 
-        # --- FOOLPROOF STATS ---
-        avg = float(category_data["sales"].mean()) if "sales" in category_data.columns else 0.0
-        # Prevent math error if avg is 0
-        safe_avg = max(avg, 0.001) 
-        
-        std = float(category_data["rolling_std_7"].mean()) if "rolling_std_7" in category_data.columns else 0.5
-        if np.isnan(std) or std <= 0: std = 0.1
-
-        lead_time = lead.get("lead_time_days", 3)
-        z = lead.get("service_level_z", 1.645)
-
-        # 1. ROP Math: Demand during lead time + Safety Buffer
-        safety = z * std * math.sqrt(lead_time)
-        rop = (avg * lead_time) + safety
-
-        # 2. Volatility (Coefficient of Variation)
-        volatility_index = round(std / safe_avg, 2)
-        risk_level = "Low"
-        if volatility_index > 0.6: risk_level = "Medium"
-        if volatility_index > 1.2: risk_level = "High"
-
-        # 3. Days of Cover (Current ROP / Demand)
-        days_of_cover = round(rop / safe_avg, 1)
-
-        # --- ACTION LOGIC ---
-        if avg == 0:
-            action = " NO DEMAND: Review SKU for decommissioning."
-        elif days_of_cover < lead_time:
-            action = " CRITICAL: Lead time exceeds stock. Expedite order."
-        elif days_of_cover < (lead_time + 5):
-            action = "REORDER: Stock levels approaching threshold."
-        elif days_of_cover > 60:
-            action = " OVERSTOCK: Significant surplus. Pause purchasing."
+        if "cat_id" in df.columns:
+            category_data = df[df["cat_id"] == category].copy()
         else:
-            action = " OPTIMAL: Levels aligned with demand."
+            category_data = df.copy()
+
+        if category_data.empty: 
+            return None, f"No data found for {category} in region {selected_state}"
+
+        # 4. ML-Powered Demand Prediction for ROP
+        model = joblib.load(MODEL_PATH)
+        X = category_data.copy()
+        
+        for feat in FEATURES:
+            if feat not in X.columns:
+                X[feat] = 0 if feat in NUM_FEATURES else "Unknown"
+        
+        for col in CAT_FEATURES:
+            X[col] = pd.Categorical(X[col]).codes
+
+        # Use the bypass flag for the 16-feature mismatch
+        preds = model.predict(X[FEATURES].values, predict_disable_shape_check=True)
+        category_data["ml_forecast"] = np.clip(preds, 0, None)
+
+        # 5. Risk Math
+        avg_demand = max(float(category_data["ml_forecast"].mean()), 0.001)
+        std_dev = float(category_data["rolling_std_7"].mean()) if "rolling_std_7" in category_data.columns else 0.5
+
+        # Match category from JSON
+        matched_key = next((k for k in lead_times if k in category), None)
+        lead_cfg = lead_times[matched_key] if matched_key else {"lead_time_days": 3, "service_level_z": 1.645}
+        
+        lt = lead_cfg.get("lead_time_days", 3)
+        z = lead_cfg.get("service_level_z", 1.645)
+
+        # ROP = (Forecasted Demand * Lead Time) + Safety Stock
+        safety_stock = z * std_dev * math.sqrt(lt)
+        rop = (avg_demand * lt) + safety_stock
+        days_of_cover = round(rop / avg_demand, 1) if avg_demand > 0 else 0
+
+        # Recommended Action Logic
+        if days_of_cover < lt:
+            action = "CRITICAL: Stockout risk. Expedite regional transfer."
+        elif days_of_cover > 45:
+            action = "OVERSTOCK: Capital frozen. Reduce reorder quantity."
+        else:
+            action = "OPTIMAL: Inventory levels healthy for this region."
 
         return {
+            "region": selected_state,
             "category": category,
             "rop": round(rop, 2),
-            "safety_stock": round(safety, 2),
-            "avg_daily_demand": round(avg, 2),
-            "demand_volatility": volatility_index,
-            "risk_status": risk_level,
+            "safety_stock": round(safety_stock, 2),
+            "risk_status": "High" if (std_dev / avg_demand) > 1.0 else "Low/Medium",
             "estimated_days_of_cover": days_of_cover,
-            "lead_time": lead_time,
-            "recommended_action": action
+            "recommended_action": action,
+            "available_states": available_regions, # Added for the dropdown loop
+            "total_items": len(category_data),
+            "lead_time": lt
         }, None
 
     except Exception as e:

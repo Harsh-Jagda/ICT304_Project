@@ -5,44 +5,80 @@
     <title>Risk Analysis | Warehouse AI</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --border: #334155; --red: #f87171; --yellow: #fbbf24; --green: #34d399; }
+        :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --border: #334155; --red: #f87171; --yellow: #fbbf24; --green: #34d399; --accent: #38bdf8; }
         body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; padding: 20px; }
         .risk-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
         .card { background: var(--card); padding: 25px; border-radius: 12px; border: 1px solid var(--border); position: relative; }
         .risk-badge { position: absolute; top: 20px; right: 20px; padding: 6px 14px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; border: 1px solid transparent; }
+        
+        /* Fixed status selectors to handle slashes in "Low/Medium" */
         .status-High { background: rgba(248, 113, 113, 0.15); color: var(--red); border-color: var(--red); }
         .status-Medium { background: rgba(251, 191, 36, 0.15); color: var(--yellow); border-color: var(--yellow); }
-        .status-Low { background: rgba(52, 211, 153, 0.15); color: var(--green); border-color: var(--green); }
+        .status-Low, .status-Low-Medium { background: rgba(52, 211, 153, 0.15); color: var(--green); border-color: var(--green); }
+        
         .action-box { margin-top: 20px; padding: 15px; background: rgba(15, 23, 42, 0.5); border-radius: 8px; border: 1px solid #334155; }
+        .region-tag { display: inline-block; padding: 4px 10px; background: rgba(56, 189, 248, 0.1); border: 1px solid var(--accent); color: var(--accent); border-radius: 6px; font-size: 0.85rem; font-weight: bold; margin-top: 8px;}
+        
+        .filter-select {
+            padding: 10px;
+            background: var(--bg);
+            color: white;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            width: 100%;
+            max-width: 300px;
+        }
     </style>
 </head>
 <body>
 
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-        <h2>Inventory Risk Assessment</h2>
-        <a href="/dashboard" style="color: #38bdf8; text-decoration: none; font-weight: bold;">← Back</a>
+    {% set current_region = data.region if data is mapping else data[0].region if data else 'ALL' %}
+    {% set display_region = 'ALL (Global Aggregation)' if current_region == 'ALL' else current_region %}
+
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px;">
+        <div>
+            <h2 style="margin: 0;">Inventory Risk Assessment</h2>
+            <div class="region-tag">📍 Target Region: {{ display_region }}</div>
+        </div>
+        <div style="text-align: right;">
+            <a href="/dashboard" style="color: var(--accent); text-decoration: none; font-weight: bold; display: block; margin-bottom: 10px;">← Back to Dashboard</a>
+            
+            <select class="filter-select" onchange="location.href='/risk?state=' + this.value">
+                <option value="ALL" {% if current_region == 'ALL' %}selected{% endif %}>Global View</option>
+                {% if data.available_states %}
+                    {% for state in data.available_states %}
+                        <option value="{{ state }}" {% if current_region == state %}selected{% endif %}>{{ state }}</option>
+                    {% endfor %}
+                {% endif %}
+            </select>
+        </div>
     </div>
 
     <div class="card" style="border-left: 5px solid var(--yellow); margin-bottom: 30px;">
-        <h3 style="margin:0;"> Understanding Risk Metrics</h3>
+        <h3 style="margin:0;"> Understanding Regional Risk</h3>
         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; font-size: 0.9rem; color: #94a3b8; margin-top: 10px;">
-            <div><b>ROP:</b> Trigger level to place a new order.</div>
-            <div><b>Safety Stock:</b> Emergency buffer for demand spikes.</div>
-            <div><b>Days of Cover:</b> How long stock lasts. Red = Emergency.</div>
+            <div><b>ROP:</b> Trigger level to place a new regional order.</div>
+            <div><b>Safety Stock:</b> Buffer tailored to this specific region's volatility.</div>
+            <div><b>Days of Cover:</b> Local stock longevity. Red = Emergency.</div>
         </div>
     </div>
 
     <div class="risk-grid">
-        {% for item in data %}
+        {# Handle both list of categories or single category object #}
+        {% set items = data if data is iterable and data is not mapping else [data] %}
+        
+        {% for item in items %}
         <div class="card">
-            <span class="risk-badge status-{{ item.risk_status }}">{{ item.risk_status }} RISK</span>
+            {# Replace slash with dash for CSS class safety #}
+            <span class="risk-badge status-{{ item.risk_status | replace('/', '-') }}">{{ item.risk_status }} RISK</span>
             <h3>{{ item.category }}</h3>
-            
+
             <div style="display: flex; gap: 30px; align-items: center;">
                 <div style="width: 130px; height: 130px;"><canvas id="chart-{{ loop.index }}"></canvas></div>
                 <div>
                     <div style="color: #94a3b8; font-size: 0.8rem;">Reorder Point</div>
                     <div style="font-size: 1.4rem; font-weight: bold;">{{ item.rop }} units</div>
+                    
                     <div style="color: #94a3b8; font-size: 0.8rem; margin-top:10px;">Days of Cover</div>
                     <div style="font-size: 1.2rem; font-weight: bold; color: {% if item.estimated_days_of_cover < item.lead_time %}var(--red){% else %}var(--green){% endif %};">
                         {{ item.estimated_days_of_cover }} Days
@@ -62,16 +98,27 @@
         </div>
 
         <script>
-            new Chart(document.getElementById('chart-{{ loop.index }}'), {
-                type: 'doughnut',
-                data: {
-                    labels: ['Cycle', 'Safety'],
-                    datasets: [{ data: [{{ item.rop - item.safety_stock }}, {{ item.safety_stock }}], backgroundColor: ['#38bdf8', '#6366f1'], borderWidth: 0 }]
-                },
-                options: { cutout: '75%', plugins: { legend: { display: false } } }
-            });
+            (function() {
+                const ctx = document.getElementById('chart-{{ loop.index }}');
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Cycle', 'Safety'],
+                        datasets: [{ 
+                            data: [Math.max(0, {{ item.rop - item.safety_stock }}), {{ item.safety_stock }}], 
+                            backgroundColor: ['#38bdf8', '#6366f1'], 
+                            borderWidth: 0 
+                        }]
+                    },
+                    options: { 
+                        cutout: '75%', 
+                        plugins: { legend: { display: false } } 
+                    }
+                });
+            })();
         </script>
         {% endfor %}
     </div>
+
 </body>
 </html>

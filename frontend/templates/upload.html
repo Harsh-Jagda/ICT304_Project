@@ -2,65 +2,70 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Upload CSV</title>
+  <title>Upload CSV | Warehouse AI</title>
   <style>
-    body {
-      background-color: #121212;
-      color: #f0f0f0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      margin: 0;
-      padding: 0;
-    }
-    header {
-      background-color: #1f1f1f;
-      padding: 1rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
+    :root { --bg: #121212; --card: #1f1f1f; --accent: #03dac6; --error: #f87171; --success: #34d399; }
+    body { background-color: var(--bg); color: #f0f0f0; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; }
+    header { background-color: var(--card); padding: 1rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
     header h1 { margin: 0; font-size: 1.5rem; }
-    header a { color: #03dac6; text-decoration: none; margin-left: 1rem; }
-    .container { padding: 2rem; }
-    .card {
-      background-color: #1f1f1f;
-      padding: 1rem;
-      border-radius: 8px;
-      margin-bottom: 1rem;
-      box-shadow: 0 0 10px rgba(0,0,0,0.3);
-    }
-    input[type="file"] {
-      display: block;
-      margin-bottom: 1rem;
-    }
-    input[type="submit"] {
-      background-color: #03dac6;
-      border: none;
-      padding: 0.5rem 1rem;
-      color: #121212;
-      font-weight: bold;
-      border-radius: 5px;
-      cursor: pointer;
-    }
+    header a { color: var(--accent); text-decoration: none; margin-left: 1rem; font-weight: bold; }
+    .container { padding: 2rem; max-width: 800px; margin: 0 auto; }
+    .card { background-color: var(--card); padding: 2rem; border-radius: 8px; margin-bottom: 1.5rem; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
+    
+    .alert { padding: 1rem; border-radius: 5px; margin-bottom: 1.5rem; font-weight: bold; border-left: 5px solid; }
+    .alert-error { background: rgba(248, 113, 113, 0.1); color: var(--error); border-color: var(--error); }
+    .alert-success { background: rgba(52, 211, 153, 0.1); color: var(--success); border-color: var(--success); }
+    
+    .requirements { font-size: 0.85rem; color: #94a3b8; background: #000; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+    code { color: var(--accent); font-family: monospace; }
+    
+    input[type="file"] { display: block; margin-bottom: 1.5rem; background: #333; padding: 10px; width: 100%; border-radius: 5px; }
+    input[type="submit"] { background-color: var(--accent); border: none; padding: 0.75rem 1.5rem; color: #121212; font-weight: bold; border-radius: 5px; cursor: pointer; width: 100%; }
+    input[type="submit"]:hover { opacity: 0.9; }
   </style>
 </head>
 <body>
+
   <header>
-    <h1>Upload CSV</h1>
+    <h1>Data Upload Pipeline</h1>
     <div>
-      <a href="/dashboard">Back to Dashboard</a>
-      <a href="/logout">Logout</a>
+      <a href="/dashboard">← Back to Dashboard</a>
+      <a href="/logout" style="color: #94a3b8;">Logout</a>
     </div>
   </header>
 
   <div class="container">
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
     <div class="card">
+      <h3 style="margin-top: 0;">Upload New Dataset</h3>
+      <p style="color: #94a3b8;">Upload your inventory CSV. Our system will automatically validate the schema before saving.</p>
+      
+      <div class="requirements">
+        <strong>Required Columns:</strong><br>
+        <code>date, item_id, dept_id, cat_id, store_id, state_id, sales, sell_price</code>
+      </div>
+
       <form method="POST" enctype="multipart/form-data">
-        <label for="file">Select CSV file:</label>
+        <label for="file" style="display: block; margin-bottom: 8px; font-weight: bold;">Select CSV file:</label>
         <input type="file" name="file" id="file" accept=".csv" required>
-        <input type="submit" value="Upload">
+        <input type="submit" value="Verify & Upload to Warehouse AI">
       </form>
     </div>
+
+    <div style="text-align: center; color: #64748b; font-size: 0.8rem;">
+      Files are processed server-side. Ensure headers are lowercase and exactly match the required schema.
+    </div>
   </div>
+
 </body>
 </html>
-

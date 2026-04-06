@@ -14,6 +14,7 @@
             --analyst-gold: #fbbf24;
             --viewer-green: #34d399;
             --border: #334155;
+            --input-bg: #0f172a;
         }
 
         body {
@@ -76,9 +77,12 @@
             cursor: pointer;
             width: 100%;
             text-align: center;
+            box-sizing: border-box;
         }
 
+        .button:hover { opacity: 0.9; }
         .secondary { background: var(--border); color: white; }
+        .info-btn { background: #6366f1; color: white; }
 
         .radio-group {
             background: #111827;
@@ -91,12 +95,23 @@
         }
 
         .divider { height: 1px; background: var(--border); margin: 15px 0; }
-        
+
         .empty-state {
             color: #64748b;
             font-style: italic;
             text-align: center;
             padding: 20px;
+        }
+
+        .region-select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            background: var(--input-bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 1rem;
         }
     </style>
 </head>
@@ -107,12 +122,15 @@
         <h1 style="margin:0;">Warehouse AI</h1>
         <p style="margin:0;">User: <b>{{ session.get('username') }}</b> <span class="badge badge-{{ role }}">{{ role }}</span></p>
     </div>
-    <a href="/logout" style="color: #94a3b8; text-decoration: none;">Sign Out</a>
+    <div style="display: flex; gap: 15px; align-items: center;">
+        <a href="/instructions" style="color: var(--accent); text-decoration: none; font-weight: bold;">Manual & Docs</a>
+        <a href="/logout" style="color: #94a3b8; text-decoration: none;">Sign Out</a>
+    </div>
 </div>
 
 <div class="status-bar">
     <div>
-        <small style="color: #94a3b8; display: block;">ACTIVE DATASET</small>
+        <small style="color: #94a3b8; display: block;">ACTIVE DATASET (MULTI-REGION CAPABLE)</small>
         <b style="color: {{ 'var(--viewer-green)' if active_name != 'None' else '#f87171' }};">
             {{ active_name }}
         </b>
@@ -129,14 +147,16 @@
     <div class="card admin-card">
         <h3 style="color: var(--admin-red);"> System Administration</h3>
         <p>Manage raw data and system configurations.</p>
-        
+
+        <p style="font-size: 0.8rem; color: #94a3b8;">⚠️ Ensure uploaded datasets contain the <code>state_id</code> column for accurate regional forecasting.</p>
+
         <a href="/upload" class="button">Upload New CSV/Parquet</a>
         <a href="/update_lead_times" class="button secondary">Upload New JSON Config</a>
-        <a href="/demo" class="button secondary">Reset to Demo Data</a>
-        
+        <a href="/instructions" class="button info-btn">System User Manual</a>
+
         <div class="divider"></div>
         <p><b>Audit Log (Recent):</b></p>
-        <div style="font-family: monospace; font-size: 0.75rem; color: #94a3b8; background: #000; padding: 10px; border-radius: 5px;">
+        <div style="font-family: monospace; font-size: 0.75rem; color: #94a3b8; background: #000; padding: 10px; border-radius: 5px; max-height: 150px; overflow-y: auto;">
             {% for log in audit_logs %}
                 <div>{{ log }}</div>
             {% endfor %}
@@ -147,7 +167,7 @@
     {% if role in ["admin", "analyst"] %}
     <div class="card analyst-card">
         <h3 style="color: var(--analyst-gold);"> Analyst Workspace</h3>
-        
+
         <form method="POST" action="/select_csv">
             <p><b>1. Switch Active Dataset:</b></p>
             {% for file in uploads %}
@@ -173,17 +193,30 @@
         </form>
 
         <div class="divider"></div>
+
+        <p><b>3. Regional Analysis:</b></p>
+        <select class="region-select target-region">
+            <option value="ALL">All Regions (Global Aggregation)</option>
+            {% if available_regions %}
+                {% for region in available_regions %}
+                    <option value="{{ region }}">Region: {{ region }}</option>
+                {% endfor %}
+            {% endif %}
+        </select>
+
         <div style="display: flex; gap: 10px;">
-            <a href="/forecast" class="button" style="background: var(--accent);">Run Forecast</a>
-            <a href="/risk" class="button" style="background: var(--accent);">Run Risk</a>
+            <button onclick="executeReport('/forecast')" class="button" style="background: var(--accent);">Run Forecast</button>
+            <button onclick="executeReport('/risk')" class="button" style="background: var(--accent);">Run Risk</button>
         </div>
+
+        <a href="/instructions" class="button secondary" style="margin-top: 15px;">View Feature Documentation</a>
     </div>
     {% endif %}
 
     {% if role == "viewer" %}
     <div class="card viewer-card">
         <h3 style="color: var(--viewer-green);"> Executive Overview</h3>
-        
+
         {% if active_name == "None" %}
         <div class="empty-state">
             <p>⚠️ No dataset has been activated for the team yet.</p>
@@ -191,9 +224,20 @@
         </div>
         {% else %}
         <p>The following reports are ready based on the <b>{{ active_name }}</b> dataset.</p>
+
         <div style="background: #111827; padding: 15px; border-radius: 8px;">
-            <a href="/forecast" class="button" style="background: var(--viewer-green); color: #000;">Open Forecast Report</a>
-            <a href="/risk" class="button" style="background: var(--viewer-green); color: #000;">Open Risk Report</a>
+            <label for="viewer-region" style="font-size: 0.9rem; font-weight: bold; margin-bottom: 5px; display: block;">Select Target Region:</label>
+            <select id="viewer-region" class="region-select target-region">
+                <option value="ALL">All Regions (Global Aggregation)</option>
+                {% if available_regions %}
+                    {% for region in available_regions %}
+                        <option value="{{ region }}">Region: {{ region }}</option>
+                    {% endfor %}
+                {% endif %}
+            </select>
+
+            <button onclick="executeReport('/forecast')" class="button" style="background: var(--viewer-green); color: #000;">Open Forecast Report</button>
+            <button onclick="executeReport('/risk')" class="button" style="background: var(--viewer-green); color: #000;">Open Risk Report</button>
         </div>
         {% endif %}
 
@@ -201,10 +245,47 @@
         <p style="font-size: 0.8rem; color: #94a3b8;">
             <b>Read-Only Access:</b> You are viewing validated results. To request a data change, contact the Admin.
         </p>
+        <a href="/instructions" class="button secondary">How to Read These Reports</a>
     </div>
     {% endif %}
 
 </div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const activeData = "{{ active_name }}";
+
+        if (activeData && activeData !== "None") {
+            fetch('/get_available_regions', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if(data.regions && data.regions.length > 0) {
+                        const selectors = document.querySelectorAll('.target-region');
+                        selectors.forEach(select => {
+                            if (select.options.length <= 1) {
+                                select.innerHTML = '<option value="ALL">All Regions (Global Aggregation)</option>';
+                                data.regions.forEach(state => {
+                                    let opt = document.createElement('option');
+                                    opt.value = state;
+                                    opt.innerText = "Region: " + state;
+                                    select.appendChild(opt);
+                                });
+                            }
+                        });
+                    }
+                })
+                .catch(err => console.error("Could not load regions:", err));
+        }
+    });
+
+    function executeReport(baseRoute) {
+        const selects = document.querySelectorAll('.target-region');
+        let activeSelect = Array.from(selects).find(s => s.offsetParent !== null); 
+
+        let state = activeSelect ? activeSelect.value : "ALL";
+        window.location.href = baseRoute + "?state=" + encodeURIComponent(state);
+    }
+</script>
 
 </body>
 </html>

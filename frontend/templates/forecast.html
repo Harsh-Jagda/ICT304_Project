@@ -13,46 +13,43 @@
         .badge { padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: bold; text-transform: uppercase; }
         .badge-high { background: #22c55e; color: white; }
         .badge-moderate { background: #f59e0b; color: black; }
-        .legend-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; font-size: 0.9rem; color: #94a3b8; margin-top: 10px; }
+        .badge-n\/a { background: #475569; color: white; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th { text-align: left; color: #94a3b8; border-bottom: 1px solid var(--border); padding: 12px; }
         td { padding: 12px; border-bottom: 1px solid #1e293b; }
-        .action-text { font-size: 1.1rem; font-weight: bold; color: white; margin-top: 10px; }
+        .region-tag { display: inline-block; padding: 4px 10px; background: rgba(56, 189, 248, 0.1); border: 1px solid var(--accent); color: var(--accent); border-radius: 6px; font-size: 0.85rem; font-weight: bold; margin-top: 8px;}
     </style>
 </head>
 <body>
 
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-        <h2 style="margin:0;"> AI Demand Forecast</h2>
+    {% set current_region = request.args.get('state', 'ALL') %}
+
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px;">
+        <div>
+            <h2 style="margin:0;"> AI Demand Forecast</h2>
+            <div class="region-tag">📍 Target Region: {{ current_region }}</div>
+        </div>
         <a href="/dashboard" style="color: var(--accent); text-decoration: none; font-weight: bold;">← Back</a>
     </div>
 
-    <div class="card" style="border-left: 5px solid var(--accent);">
-        <h3 style="margin-top:0;"> How to Read the Forecast</h3>
-        <div class="legend-grid">
-            <div><b style="color: var(--text);">Daily Demand (Chart)</b><br>Total units across all items in a category per 24hrs.</div>
-            <div><b style="color: var(--text);">System Confidence</b><br>High = Stable trends. Moderate = Safety stock recommended.</div>
-            <div><b style="color: var(--text);">High Demand Items</b><br>Count of items moving >1 unit per day.</div>
-        </div>
-    </div>
-
+    {% if data and data.by_category %}
     <div class="grid">
         <div>
             <div class="card">
                 <p style="margin-top:0; color: #94a3b8;">System Confidence</p>
                 <span class="badge badge-{{ data.confidence_rating | lower }}">{{ data.confidence_rating }}</span>
-                <div style="margin-top:20px;"><p>Total Items</p><div class="stat">{{ data.total_items }}</div></div>
+                <div style="margin-top:20px;"><p>Regional Items</p><div class="stat">{{ data.total_items }}</div></div>
                 <div style="margin-top:20px;"><p>High Demand SKUs</p><div class="stat">{{ data.high_demand_count }}</div></div>
             </div>
 
             <div class="card" style="border-left: 5px solid var(--purple);">
                 <h3 style="margin:0; color: var(--purple); font-size: 0.9rem;"> LABOR ALLOCATION ADVICE</h3>
-                <div class="action-text">{{ data.labor_action }}</div>
+                <div style="font-size: 1.1rem; font-weight: bold; margin-top: 10px;">{{ data.labor_action }}</div>
             </div>
         </div>
 
         <div class="card">
-            <h3 style="margin:0;"> Category Volume (Daily)</h3>
+            <h3 style="margin:0;"> Regional Category Volume (Daily)</h3>
             <canvas id="forecastChart" width="400" height="220"></canvas>
         </div>
     </div>
@@ -63,7 +60,12 @@
             <thead><tr><th>Category</th><th>Avg Units/Item</th><th>Daily Volume</th><th>SKU Count</th></tr></thead>
             <tbody>
                 {% for cat, metrics in data.by_category.items() %}
-                <tr><td><b>{{ cat }}</b></td><td>{{ metrics.avg_per_item }}</td><td style="color: var(--accent);">{{ metrics.total_daily }}</td><td>{{ metrics.item_count }}</td></tr>
+                <tr>
+                    <td><b>{{ cat }}</b></td>
+                    <td>{{ metrics.avg_per_item }}</td>
+                    <td style="color: var(--accent);">{{ metrics.total_daily }}</td>
+                    <td>{{ metrics.item_count }}</td>
+                </tr>
                 {% endfor %}
             </tbody>
         </table>
@@ -77,8 +79,15 @@
         new Chart(ctx, {
             type: 'bar',
             data: { labels: labels, datasets: [{ data: values, backgroundColor: '#38bdf8', borderRadius: 6 }] },
-            options: { plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#334155' } } } }
+            options: { plugins: { legend: { display: false } } }
         });
     </script>
+    {% else %}
+    <div class="card" style="text-align: center; padding: 50px;">
+        <h3>No Data Found</h3>
+        <p>The system could not find forecasting data for region: {{ current_region }}</p>
+        <a href="/dashboard" style="color: var(--accent);">Return to Dashboard to select a different dataset.</a>
+    </div>
+    {% endif %}
 </body>
 </html>
