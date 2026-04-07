@@ -63,6 +63,8 @@
         .admin-card { border-top: 4px solid var(--admin-red); }
         .analyst-card { border-top: 4px solid var(--analyst-gold); }
         .viewer-card { border-top: 4px solid var(--viewer-green); }
+        
+        .health-card { border-top: 4px solid var(--accent); background: linear-gradient(145deg, #1e293b, #111827); }
 
         .button {
             display: inline-block;
@@ -113,6 +115,33 @@
             border-radius: 6px;
             font-size: 1rem;
         }
+        
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 6px;
+        }
+
+        /* New class for the automated insights */
+        .insights-box {
+            background: rgba(56, 189, 248, 0.1);
+            border-left: 3px solid var(--accent);
+            padding: 15px;
+            border-radius: 0 6px 6px 0;
+            margin-top: 15px;
+            font-size: 0.85rem;
+            color: #e2e8f0;
+        }
+        .insights-box ul {
+            margin: 8px 0 0 0;
+            padding-left: 20px;
+        }
+        .insights-box li {
+            margin-bottom: 6px;
+        }
     </style>
 </head>
 <body>
@@ -142,6 +171,41 @@
 </div>
 
 <div class="container">
+
+    <div class="card health-card">
+        <h3 style="color: var(--accent);"> AI Model Health & Validation</h3>
+        <p style="font-size: 0.9rem;">Real-time performance metrics for the currently selected region.</p>
+        
+        <div id="health-loader" style="text-align:center; padding: 20px; color: var(--accent);">
+            Calculating metrics...
+        </div>
+
+        <div id="health-metrics" style="display: none;">
+            <div class="metric-row">
+                <span>Mean Absolute Error (MAE):</span>
+                <b id="mae-val" style="color: var(--analyst-gold);">--</b>
+            </div>
+            <div class="metric-row">
+                <span>Root Mean Squared Error:</span>
+                <b id="rmse-val">--</b>
+            </div>
+            <div class="metric-row">
+                <span>Vs. Naive Baseline:</span>
+                <b id="improvement-val">--</b>
+            </div>
+            
+            <div class="insights-box" id="health-insights">
+                </div>
+
+            <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 15px;">
+                * Validation performed on a 15% chronological test split. Baseline uses Lag-7 (Last Week) persistence.
+            </p>
+        </div>
+        
+        <div id="health-error" style="display:none; color: var(--admin-red); font-size: 0.8rem;">
+            Select a dataset to view accuracy.
+        </div>
+    </div>
 
     {% if role == "admin" %}
     <div class="card admin-card">
@@ -195,7 +259,7 @@
         <div class="divider"></div>
 
         <p><b>3. Regional Analysis:</b></p>
-        <select class="region-select target-region">
+        <select class="region-select target-region" onchange="updateModelHealth()">
             <option value="ALL">All Regions (Global Aggregation)</option>
             {% if available_regions %}
                 {% for region in available_regions %}
@@ -227,7 +291,7 @@
 
         <div style="background: #111827; padding: 15px; border-radius: 8px;">
             <label for="viewer-region" style="font-size: 0.9rem; font-weight: bold; margin-bottom: 5px; display: block;">Select Target Region:</label>
-            <select id="viewer-region" class="region-select target-region">
+            <select id="viewer-region" class="region-select target-region" onchange="updateModelHealth()">
                 <option value="ALL">All Regions (Global Aggregation)</option>
                 {% if available_regions %}
                     {% for region in available_regions %}
@@ -272,11 +336,89 @@
                                 });
                             }
                         });
+                        updateModelHealth();
                     }
                 })
                 .catch(err => console.error("Could not load regions:", err));
+        } else {
+            document.getElementById('health-loader').style.display = 'none';
+            document.getElementById('health-error').style.display = 'block';
         }
     });
+
+    function updateModelHealth() {
+        const selects = document.querySelectorAll('.target-region');
+        let activeSelect = Array.from(selects).find(s => s.offsetParent !== null);
+        let state = activeSelect ? activeSelect.value : "ALL";
+
+        const loader = document.getElementById('health-loader');
+        const metricsDiv = document.getElementById('health-metrics');
+        const errorDiv = document.getElementById('health-error');
+
+        loader.style.display = 'block';
+        metricsDiv.style.display = 'none';
+        errorDiv.style.display = 'none';
+
+        fetch(`/api/model_health?state=${encodeURIComponent(state)}`)
+            .then(res => res.json())
+            .then(data => {
+                loader.style.display = 'none';
+                if (data.error) {
+                    errorDiv.innerText = data.error;
+                    errorDiv.style.display = 'block';
+                } else {
+                    document.getElementById('mae-val').innerText = data.mae + " units";
+                    document.getElementById('rmse-val').innerText = data.rmse;
+                    
+                    const improvementVal = document.getElementById('improvement-val');
+                    const pct = data.improvement_pct;
+                    
+                    if (pct > 0) {
+                        improvementVal.innerText = "+" + pct + "% Better";
+                        improvementVal.style.color = "var(--viewer-green)";
+                    } else if (pct < 0) {
+                        improvementVal.innerText = pct + "% Worse";
+                        improvementVal.style.color = "var(--admin-red)";
+                    } else {
+                        improvementVal.innerText = "0% (Same as Baseline)";
+                        improvementVal.style.color = "var(--text)";
+                    }
+                    
+                    // --- NEW: Generate Dynamic Insights ---
+                    let insightsHtml = "<strong> Automated Interpretation:</strong><ul>";
+                    
+                    // Detail 1: MAE Plain English
+                    insightsHtml += `<li><b>Accuracy:</b> On average, the model's predictions are off by <b>${data.mae} units</b> per item. (Lower is better).</li>`;
+                    
+                    // Detail 2: Outlier Detection (RMSE vs MAE)
+                    // If RMSE is significantly larger than MAE, it means there are huge spikes the model missed.
+                    if (data.rmse > (data.mae * 1.5)) {
+                        let ratio = (data.rmse / data.mae).toFixed(1);
+                        insightsHtml += `<li><b>Volatility Warning:</b> RMSE is ${ratio}x higher than MAE. This indicates occasional large prediction errors, likely due to sudden demand spikes or promotional events.</li>`;
+                    } else {
+                        insightsHtml += `<li><b>Stability:</b> Model errors are consistent. There are few massive outliers in the predictions.</li>`;
+                    }
+
+                    // Detail 3: Baseline Comparison
+                    if (pct > 0) {
+                        insightsHtml += `<li><b style="color: var(--viewer-green);">Value Add (Good):</b> The AI is successfully detecting patterns and outperforming a basic "Last Week" estimation method by ${pct}%.</li>`;
+                    } else if (pct < 0) {
+                        insightsHtml += `<li><b style="color: var(--admin-red);">Value Add (Poor):</b> The AI is currently performing worse than simply using last week's numbers. Consider reviewing feature engineering.</li>`;
+                    }
+
+                    insightsHtml += "</ul>";
+                    document.getElementById('health-insights').innerHTML = insightsHtml;
+                    // ----------------------------------------
+
+                    metricsDiv.style.display = 'block';
+                }
+            })
+            .catch(err => {
+                loader.style.display = 'none';
+                errorDiv.innerText = "Failed to fetch metrics.";
+                errorDiv.style.display = 'block';
+            });
+    }
 
     function executeReport(baseRoute) {
         const selects = document.querySelectorAll('.target-region');

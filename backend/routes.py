@@ -12,7 +12,6 @@ from auth import (
     get_username
 )
 
-
 routes = Blueprint("routes", __name__)
 
 GLOBAL_STATE = {
@@ -342,3 +341,29 @@ def get_regions():
     if 'state_id' in df.columns:
         return jsonify({"regions": sorted(df['state_id'].unique().tolist())})
     return jsonify({"regions": []})
+
+
+@routes.route("/api/model_health")
+def model_health():
+    # Only allowed for authorized roles
+    if not role_required(["admin", "analyst", "viewer"]):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    # 1. Get current system state
+    csv_path = GLOBAL_STATE.get("active_csv")
+    selected_state = request.args.get('state', 'ALL')
+
+    if not csv_path or not os.path.exists(csv_path):
+        return jsonify({"error": "No active dataset selected"}), 400
+
+    # 2. Access the model and features from forecasting_service
+    # We import inside the route to avoid circular dependencies
+    from services.evaluation_service import get_model_metrics
+
+    # 3. Calculate Metrics
+    metrics = get_model_metrics(csv_path, selected_state)
+
+    if "error" in metrics:
+        return jsonify(metrics), 500
+
+    return jsonify(metrics)
