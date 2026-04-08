@@ -1,0 +1,171 @@
+{
+  "timestamp": "2026-04-02T07:55:27.140890",
+  "overall_score": 1.0,
+  "grade": "A - Excellent",
+  "pass": 23,
+  "fail": 0,
+  "skip": 0,
+  "details": [
+    {
+      "level": "UNIT",
+      "name": "Safety Stock Formula",
+      "status": "PASS",
+      "detail": "Z x sigma x sqrt(LT) = 8.4870",
+      "score": null
+    },
+    {
+      "level": "UNIT",
+      "name": "Reorder Point Formula",
+      "status": "PASS",
+      "detail": "ROP = 26.0",
+      "score": null
+    },
+    {
+      "level": "UNIT",
+      "name": "Order Qty Ceiling (np.ceil)",
+      "status": "PASS",
+      "detail": "ROP-Stock rounded up = 8",
+      "score": null
+    },
+    {
+      "level": "UNIT",
+      "name": "No Negative Orders",
+      "status": "PASS",
+      "detail": "Stock > ROP means order = 0",
+      "score": null
+    },
+    {
+      "level": "UNIT",
+      "name": "Item ID Parsing",
+      "status": "PASS",
+      "detail": "Category=FOODS_1, ID=042",
+      "score": null
+    },
+    {
+      "level": "UNIT",
+      "name": "Zero Demand Guard (1e-6)",
+      "status": "PASS",
+      "detail": "stockout_days = 10000000.0",
+      "score": null
+    },
+    {
+      "level": "INTEGRATION",
+      "name": "Model Loads (joblib)",
+      "status": "PASS",
+      "detail": "16 features",
+      "score": null
+    },
+    {
+      "level": "INTEGRATION",
+      "name": "lead_times.json Schema",
+      "status": "PASS",
+      "detail": "All 3 categories valid",
+      "score": null
+    },
+    {
+      "level": "INTEGRATION",
+      "name": "Model Registry R/W",
+      "status": "PASS",
+      "detail": "1 versions in registry",
+      "score": null
+    },
+    {
+      "level": "INTEGRATION",
+      "name": "Retrain Trigger Evaluation",
+      "status": "PASS",
+      "detail": "Checks complete, triggered=False",
+      "score": null
+    },
+    {
+      "level": "INTEGRATION",
+      "name": "Mini Recommendation Pipeline",
+      "status": "PASS",
+      "detail": "50 predictions OK, min=0.26, max=1.37",
+      "score": null
+    },
+    {
+      "level": "ACCURACY",
+      "name": "Overall MAE",
+      "status": "PASS",
+      "detail": "MAE = 1.1894 (target < 2.0)",
+      "score": 1.1894177929593415
+    },
+    {
+      "level": "ACCURACY",
+      "name": "Overall RMSE",
+      "status": "PASS",
+      "detail": "RMSE = 2.2020 (target < 4.0)",
+      "score": 2.202024852168976
+    },
+    {
+      "level": "ACCURACY",
+      "name": "No Negative Predictions",
+      "status": "PASS",
+      "detail": "0 negative values found",
+      "score": null
+    },
+    {
+      "level": "ACCURACY",
+      "name": "MAE by Category",
+      "status": "PASS",
+      "detail": "FOODS: 1.189",
+      "score": null
+    },
+    {
+      "level": "ACCURACY",
+      "name": "Weekly Aggregated MAE",
+      "status": "PASS",
+      "detail": "Weekly MAE = 3.1219 (target < 10.0)",
+      "score": 3.121904991143241
+    },
+    {
+      "level": "ACCURACY",
+      "name": "Prediction Bias Check",
+      "status": "PASS",
+      "detail": "Mean bias = 0.0170 (|bias| < 0.5)",
+      "score": null
+    },
+    {
+      "level": "FUNCTIONAL",
+      "name": "Required Files Exist",
+      "status": "PASS",
+      "detail": "All files present",
+      "score": null
+    },
+    {
+      "level": "FUNCTIONAL",
+      "name": "Lead Times In Valid Range",
+      "status": "PASS",
+      "detail": "All Z-scores and lead times valid",
+      "score": null
+    },
+    {
+      "level": "FUNCTIONAL",
+      "name": "Edge Case: Zero Stock",
+      "status": "PASS",
+      "detail": "order_needed=True, qty=10",
+      "score": null
+    },
+    {
+      "level": "FUNCTIONAL",
+      "name": "Edge Case: Very High Demand",
+      "status": "PASS",
+      "detail": "Safety stock = 116.3 (high variance handled)",
+      "score": null
+    },
+    {
+      "level": "FUNCTIONAL",
+      "name": "Retrain Time Trigger Logic",
+      "status": "PASS",
+      "detail": "Fires after 31 days",
+      "score": null
+    },
+    {
+      "level": "FUNCTIONAL",
+      "name": "Data Schema Check",
+      "status": "PASS",
+      "detail": "All required columns present",
+      "score": null
+    }
+  ]
+}

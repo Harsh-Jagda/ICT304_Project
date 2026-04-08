@@ -1,0 +1,11 @@
+# Config package — exposes constants for import
+from config.constants import (
+    DEFAULT_UNIT_PRICE_USD,
+    HOLDING_COST_RATE,
+    DEFAULT_LEAD_TIME_DAYS,
+    DEFAULT_SERVICE_LEVEL_Z,
+    TIME_TRIGGER_DAYS,
+    DRIFT_THRESHOLD_PCT,
+    VOLUME_TRIGGER_THRESHOLD,
+    REALTIME_SALES_SUBPATH,
+)
