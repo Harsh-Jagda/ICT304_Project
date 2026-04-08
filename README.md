@@ -1,190 +1,121 @@
-# Warehouse AI: Predictive Inventory & Regional Risk Management System
+## User Guide
 
-## 1. Project Abstract
+### Quick Start (Recommended)
 
-**Warehouse AI** is a full-stack decision-support system designed to mitigate the "Bullwhip Effect" in modern supply chains. By combining Gradient Boosted Decision Trees (LightGBM) with statistical safety stock modeling, the system provides warehouse managers with high-precision demand forecasts and automated purchasing recommendations. Unlike traditional inventory systems, Warehouse AI operates with **Regional Granularity**, allowing for hyper-local analysis across different states and categories.
+> **The model has already been trained and all data is pre-processed.** You do NOT need to download M5 data or run training. The repository ships with everything required to launch the dashboard immediately.
 
----
-
-## 2. System Architecture & "The Why"
-
-The project is built on a modular **Python-Flask architecture** designed for scalability and interpretability.
-
-### 2.1 The Problem: Uncertainty and Volatility
-
-Manual inventory management suffers from two primary flaws:
-
-- **Lagged Response**: Reactive ordering leads to stockouts or overstocking.
-- **Aggregation Bias**: Looking at "Total National Sales" hides the fact that Texas might be out of stock while California is overstocked.
-
-### 2.2 The Solution: The Predictive Engine
-
-The system moves the decision point from *"How much did we sell yesterday?"* to *"How much will we sell in the next lead-time window?"* by leveraging time-series forecasting.
-
----
-
-## 3. The Machine Learning Engine (LightGBM)
-
-The core of the system is a **LightGBM** (Light Gradient Boosting Machine) model. We chose LightGBM over traditional ARIMA or LSTM models because of its ability to handle categorical features (like `state_id`) and its speed in processing large-scale tabular data.
-
-### 3.1 The 16-Feature Training Matrix
-
-The model was trained on a high-dimensional feature set designed to capture both seasonal trends and sudden volatility.
-
-| Feature Name | Type | Description | Why it matters |
-|--------------|------|-------------|----------------|
-| `sales` | Target | Historical daily units sold | The dependent variable the model predicts. |
-| `lag_7` | Numerical | Sales from exactly 7 days ago | Captures weekly cyclicality. |
-| `lag_28` | Numerical | Sales from 28 days ago | Captures monthly cyclicality. |
-| `rolling_mean_7` | Numerical | Average sales of the last week | Smooths out daily "noise." |
-| `rolling_mean_28` | Numerical | Average sales of the last month | Detects long-term demand shifts. |
-| `rolling_std_7` | Numerical | Standard deviation of weekly sales | Measures demand volatility/uncertainty. |
-| `sell_price` | Numerical | Current unit price | Accounts for price elasticity of demand. |
-| `state_id` | Categorical | Geographic region (e.g., TX, CA, WI) | Enables regional-specific forecasting. |
-| `item_id` | Categorical | Unique SKU identifier | Learns specific product behavior. |
-| `cat_id` | Categorical | Category (e.g., HOBBIES, FOODS) | Groups products with similar demand profiles. |
-| `dept_id` | Categorical | Department identifier | Secondary grouping for hierarchy. |
-| `store_id` | Categorical | Specific warehouse/retail location | Captures localized traffic patterns. |
-| `event_name_1` | Categorical | Holiday/Promotion name | Accounts for spikes (e.g., SuperBowl). |
-| `event_type_1` | Categorical | Type of event (Sporting, National) | Categorizes the nature of the demand spike. |
-| `day_of_week` | Categorical | Monday-Sunday | Learns weekday vs. weekend patterns. |
-| `month` | Categorical | 1 through 12 | Learns annual seasonality. |
-
-### 3.2 Feature Engineering Logic
-
-The inclusion of **Lag Features** (`lag_7`, `lag_28`) transforms a simple regression task into a time-series supervised learning problem. By looking at `rolling_std_7`, the model effectively "sees" how erratic a product is, which directly informs the Risk Service later.
-
----
-
-## 4. Supply Chain Risk Framework
-
-The **Risk Service** is the bridge between the ML forecast and actual warehouse operations.
-
-### 4.1 Safety Stock Calculation
-
-We use a statistical buffer to protect against demand variability during the lead time. The formula implemented in `risk_service.py` is:
-
-```
-SS = Z × σd × √LT
-```
-
-**Where:**
-- **Z**: The Service Level Z-Score (defined in your JSON config)
-- **σd**: The Standard Deviation of Demand (calculated from the rolling ML data)
-- **LT**: The Lead Time in days
-
-### 4.2 Reorder Point (ROP) Logic
-
-The **Reorder Point** is the inventory level that triggers a new purchase order. It is calculated as:
-
-```
-ROP = (Average Daily Demand × LT) + SS
-```
-
-### 4.3 Days of Cover
-
-This metric tells the user exactly how long the current stock will last based on the projected demand.
-
-- **Red Status**: Days of Cover < Lead Time (Emergency: Stock will run out before a new order arrives)
-- **Green Status**: Days of Cover > Lead Time (Safe: Adequate buffer exists)
-
----
-
-## 5. Regional Granularity & Multi-Tenancy
-
-A key feature of this system is the **State-Based Filtering**.
-
-- When a user selects "Texas" on the dashboard, the backend filters the entire CSV/Parquet dataset for `state_id == 'TX'`
-- The LightGBM model then performs inference specifically on that subset
-- This prevents "Global Averaging" where high sales in one state mask a critical shortage in another
-
----
-
-## 6. Technical Implementation (Backend)
-
-### 6.1 The Flask API
-
-- **`/forecast`**: Triggers the `forecasting_service.py`. It takes the active dataset, processes the 16 features, and returns a JSON array of predictions.
-- **`/risk`**: Triggers the `risk_service.py`. It calculates the ROP and Safety Stock by cross-referencing the ML forecast with the `lead_times.json` configuration.
-- **`/get_available_regions`**: Scans the active CSV for unique `state_id` values to populate the UI dropdowns.
-
-### 6.2 Data Preparation
-
-The `data_prep_service.py` handles missing values and data type conversion. It ensures that even if a user uploads a CSV with missing `event_name_1` tags, the model receives a "None" category rather than crashing.
-
----
-
-## 7. Installation & Usage Instructions
-
-### 7.1 Prerequisites
-
-- Python 3.10+
-- Git
-- Virtual Environment (recommended)
-
-### 7.2 Cloning the Repository
-
-Open your terminal or MINGW64 and run:
-
-```bash
-git clone https://github.com/Harsh-Jagda/ICT304_Project.git
-cd ICT304_Project
-```
-
-### 7.3 Virtual Environment Setup
-
-Create and activate the environment to isolate dependencies:
-
-```bash
-# Windows
-python -m venv venv
-source venv/Scripts/activate
-
-# Mac/Linux
-python3 -m venv venv
-source venv/bin/activate
-```
-
-### 7.4 Installing Dependencies
-
-Install the required ML and Web libraries:
-
+**Step 1: Install dependencies**
 ```bash
 pip install -r requirements.txt
 ```
 
-### 7.5 Running the Application
-
-Launch the Flask development server by running the following
-command where app.py is located. i.e. /backend.
-Username and Passwords are stored in users.csv
-
+**Step 2: Launch the dashboard**
 ```bash
-flask run
+streamlit run dashboard.py
 ```
 
-**Access the dashboard at:** `http://127.0.0.1:5000`
+The application will open at `http://localhost:8501`. That's it!
 
 ---
 
-## 8. User Manual
+### Login Credentials
 
-### 8.1 For Administrators
-
-- **Data Upload**: Access `/upload` to refresh the system with new sales data. Ensure your CSV includes the `state_id` and `sales` columns.
-- **Configuration**: Upload a new `lead_times.json` to change how safety stock is calculated for different categories.
-- **Audit Logs**: Monitor system activity through the dashboard log viewer to see who uploaded data and when.
-
-### 8.2 For Analysts
-
-- **Scenario Testing**: Use the "Active Config" toggle to switch between "Standard" and "Emergency" lead times.
-- **Regional Drill-down**: Select a specific state from the dropdown before running a Risk Report to see localized purchasing needs.
-
-### 8.3 For Viewers
-
-- **Executive Reports**: View the Risk Analysis cards. Pay close attention to the "Purchasing Action" box, which provides clear instructions like "Place Order Immediately" or "Stock Healthy."
+| Username | Password | Role | Access |
+|---|---|---|---|
+| `manager` | `123` | Manager | Live Procurement Hub |
+| `director` | `123` | Director | ROI Strategic Scorecard |
+| `admin` | `123` | Admin | Both pages |
 
 ---
 
-*This documentation provides a comprehensive overview of the Warehouse AI system, from theoretical foundations to practical implementation.*
+### What is pre-included in this repository
 
+| File | Size | Description |
+|---|---|---|
+| `models/wms_lgbm_model.pkl` | ~6.7 MB | Trained LightGBM model (production version) |
+| `models/model_registry.json` | ~1 KB | Version metadata and MAE baseline |
+| `models/best_params.json` | ~0.3 KB | Optimised hyperparameters |
+| `data/processed/processed_data_ca.parquet` | ~142 MB | California store data (used by dashboard) |
+| `data/processed/processed_data_all.parquet` | ~347 MB | All-state data (used for full retraining) |
+| `data/processed/test_sample.parquet` | ~0.2 MB | Holdout test set for accuracy verification |
+| `data/outputs/sim_results.parquet` | varies | 365-day simulation results (Director scorecard) |
+
+> **Note:** The M5 raw CSV files (`sales_train_evaluation.csv`, `calendar.csv`, `sell_prices.csv`) are **not** included due to their large size (~1 GB total). They are only needed if you want to re-run the full data pipeline from scratch (see Advanced Setup below).
+
+---
+
+### System Requirements
+
+- **Python**: 3.10 or higher
+- **RAM**: 4 GB minimum for dashboard use; 16 GB recommended for full retraining
+- **OS**: Windows 10/11, macOS 12+, or Ubuntu 20.04+
+
+---
+
+### Running the Test Suite
+
+To verify all 89 automated tests pass:
+```bash
+python -m pytest tests/ -v --tb=short --html=tests/report.html --self-contained-html
+```
+The full HTML report is saved to `tests/report.html`.
+
+---
+
+### Advanced Setup (Rebuild Everything from Scratch)
+
+This section is only needed if you want to retrain the model with fresh data, or if you are running the project on a new machine where the pre-processed files are not present.
+
+**Prerequisite: Download the M5 Dataset**
+Download from Kaggle: https://www.kaggle.com/c/m5-forecasting-accuracy/data
+Place the following files in `data/raw/`:
+- `sales_train_evaluation.csv`
+- `calendar.csv`
+- `sell_prices.csv`
+
+**Option A: Use the orchestrator (recommended)**
+```bash
+python pipeline.py
+```
+This runs all steps in order with dependency checks, progress reporting, and friendly error messages. Accepts optional flags:
+```bash
+python pipeline.py --skip-data-prep  # if processed data already exists
+python pipeline.py --skip-sim        # skip 365-day simulation
+python pipeline.py --launch          # auto-launch dashboard at the end
+```
+
+**Option B: Run steps manually**
+```bash
+# Step 1: Data preprocessing (~20–30 min)
+python src/data_pipeline/data_prep.py
+
+# Step 2: Model training (~5–15 min)
+python src/mlops/train.py
+
+# Step 3: 365-day simulation for Director scorecard (~5–10 min)
+python src/simulation/prepare_simulation.py
+
+# Step 4: Launch dashboard
+streamlit run dashboard.py
+```
+
+---
+
+### Verifying Model Accuracy
+
+To reproduce the reported metrics (MAE 1.25, RMSE 2.6) without retraining:
+```bash
+python tests/verify_accuracy.py
+```
+
+The `test_sample.parquet` file contains the year-5 holdout set that was excluded from training. Minor variations (±0.05 MAE) may occur due to LightGBM version differences or CPU parallelism affecting floating-point accumulation order. The `seed=42` parameter controls all random operations.
+
+---
+
+### Training and Validation Data Separation
+
+The M5 dataset spans 5 years (approximately 2011–2016):
+- **Training set**: All data before 2015-01-01 (years 1–4, approximately 1,913 days)
+- **Test set**: 2015-01-01 to 2016-01-01 (year 5, 365 days) — never seen during training
+
+This **temporal split** is critical: a random split would introduce data leakage (future data informing past predictions), artificially inflating accuracy metrics. The `split_data()` function in `src/mlops/train.py` enforces this split programmatically.

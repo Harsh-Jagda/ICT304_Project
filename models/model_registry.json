@@ -1,0 +1,27 @@
+[
+  {
+    "version": "v1",
+    "date": "2026-04-02T05:59:59.548871",
+    "mae": 0.8603,
+    "rmse": 1.7363,
+    "params": {
+      "objective": "regression",
+      "metric": "rmse",
+      "verbosity": -1,
+      "boosting_type": "gbdt",
+      "learning_rate": 0.036751177836404,
+      "num_leaves": 156,
+      "feature_fraction": 0.5148520034642061,
+      "bagging_fraction": 0.7085786611849173,
+      "bagging_freq": 7,
+      "n_jobs": -1,
+      "seed": 42,
+      "min_child_samples": 98,
+      "lambda_l1": 0.00564193246519675,
+      "lambda_l2": 9.505183753028975
+    },
+    "training_data": "all_states",
+    "model_file": "c:\\Users\\INRUI\\OneDrive\\Desktop\\m5-forecasting-accuracy\\model_versions\\wms_lgbm_model_v1.pkl",
+    "is_production": true
+  }
+]
